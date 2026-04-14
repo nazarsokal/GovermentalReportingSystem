@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProblemReportingSystem.API", "ProblemReportingSystem.API\ProblemReportingSystem.API.csproj", "{AD880F16-09D7-4002-A2B2-38C56AE87F6D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProblemReportingSystem.Application", "ProblemReportingSystem.Application\ProblemReportingSystem.Application.csproj", "{D112285C-9558-4311-B24C-A3540278DC53}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProblemReportingSystem.DAL", "ProblemReportingSystem.DAL\ProblemReportingSystem.DAL.csproj", "{01230286-214F-44C3-B0F3-769D90D154AD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AD880F16-09D7-4002-A2B2-38C56AE87F6D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AD880F16-09D7-4002-A2B2-38C56AE87F6D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AD880F16-09D7-4002-A2B2-38C56AE87F6D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AD880F16-09D7-4002-A2B2-38C56AE87F6D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D112285C-9558-4311-B24C-A3540278DC53}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D112285C-9558-4311-B24C-A3540278DC53}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D112285C-9558-4311-B24C-A3540278DC53}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D112285C-9558-4311-B24C-A3540278DC53}.Release|Any CPU.Build.0 = Release|Any CPU
+		{01230286-214F-44C3-B0F3-769D90D154AD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{01230286-214F-44C3-B0F3-769D90D154AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{01230286-214F-44C3-B0F3-769D90D154AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{01230286-214F-44C3-B0F3-769D90D154AD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
