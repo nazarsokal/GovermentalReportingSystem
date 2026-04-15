@@ -42,6 +42,25 @@ public class UpdateAddressDto
     public decimal? Longitude { get; set; }
 }
 
+public class ParsedAddressDto
+{
+    public string City { get; set; } = string.Empty;
+    
+    public string Street { get; set; } = string.Empty;
+    
+    public string BuildingNumber { get; set; } = string.Empty;
+    
+    public string District { get; set; } = string.Empty;
+    
+    public string Oblast { get; set; } = string.Empty;
+    
+    public string Country { get; set; } = string.Empty;
+    
+    public string Postcode { get; set; } = string.Empty;
+    
+    public string FullAddress { get; set; } = string.Empty;
+}
+
 
 
 

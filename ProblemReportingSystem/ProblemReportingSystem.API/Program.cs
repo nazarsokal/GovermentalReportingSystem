@@ -1,21 +1,56 @@
+using System.Globalization;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using ProblemReportingSystem.Application.ServiceAbstractions;
 using ProblemReportingSystem.Application.Services;
+using ProblemReportingSystem.API.Middleware;
 using ProblemReportingSystem.DAL.Infrastructure;
 using ProblemReportingSystem.DAL.Repositories;
 using ProblemReportingSystem.DAL.RepositoryAbstractions;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var cultureInfo = new CultureInfo("en-US");
+CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
+CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
+
 // Add services to the container.
 builder.Services.AddControllers();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiI2OGI2MjlkNC04MzQwLTRjMzktOWE1ZS04Zjk2MGM0OWYzNzkiLCJlbWFpbCI6Im5hemFyQGdtYWlsLmNvbSIsInVuaXF1ZV9uYW1lIjoibmF6YXJjaHVrIiwibmJmIjoxNzc2MjYyOTc4LCJleHAiOjE3NzYyNjY1NzgsImlhdCI6MTc3NjI2Mjk3OCwiaXNzIjoiUHJvYmxlbVJlcG9ydGluZ1N5c3RlbSIsImF1ZCI6IlByb2JsZW1SZXBvcnRpbmdTeXN0ZW1Vc2VycyJ9.L6U8tKddptH3TtY2okcTxr7uFNqlenQIPzVxGhFrknY",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement()
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                },
+                Scheme = "oauth2",
+                Name = "Bearer",
+                In = ParameterLocation.Header,
+            },
+            new List<string>()
+        }
+    });
+});
 
 // Add DbContext
 builder.Services.AddDbContext<ProblemReportingSystemDbContext>();
@@ -62,12 +97,20 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Register Authentication Service
+// Register Services
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<IGeolocateService, GeolocateService>();
+builder.Services.AddScoped<IProblemService, ProblemService>();
 
+// Register Repositories
 builder.Services.AddScoped(typeof(IProblemReportingSystemRepository<>),
     typeof(ProblemReportingSystemRepository<>));
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IProblemRepository, ProblemRepository>();
+
+// Register HttpClient for GeolocateService
+builder.Services.AddHttpClient<IGeolocateService, GeolocateService>();
+
 // Add CORS if needed
 builder.Services.AddCors(options =>
 {
@@ -87,6 +130,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// Use global exception handling middleware
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
 

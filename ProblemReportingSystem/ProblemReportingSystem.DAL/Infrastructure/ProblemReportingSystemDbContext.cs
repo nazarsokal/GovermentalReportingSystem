@@ -310,9 +310,12 @@ public partial class ProblemReportingSystemDbContext : DbContext
             entity.Property(e => e.PhotoId)
                 .ValueGeneratedNever()
                 .HasColumnName("photo_id");
-            entity.Property(e => e.PhotoUrl)
+            entity.Property(e => e.ImageData)
                 .HasMaxLength(255)
-                .HasColumnName("photo_url");
+                .HasColumnName("image_data");
+            entity.Property(e => e.ContentType)
+                .HasMaxLength(6)
+                .HasColumnName("content_type");
             entity.Property(e => e.ProblemId).HasColumnName("problem_id");
 
             entity.HasOne(d => d.Problem).WithMany(p => p.ProblemPhotos)

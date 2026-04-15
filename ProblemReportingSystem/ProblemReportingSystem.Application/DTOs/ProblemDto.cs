@@ -19,15 +19,19 @@ public class ProblemDto
 
 public class CreateProblemDto
 {
-    public Guid AddressId { get; set; }
-
     public Guid CategoryId { get; set; }
 
     public string Title { get; set; } = null!;
 
     public string Description { get; set; } = null!;
+    
+    public string? City { get; set; }
+    public string? Street { get; set; }
+    public string? BuildingNumber { get; set; }
+    public decimal Latitude { get; set; }
+    public decimal Longitude { get; set; }
 
-    public string? Status { get; set; }
+    public List<CreateProblemPhotoDto>? Photos { get; set; }
 }
 
 public class UpdateProblemDto
@@ -39,14 +43,5 @@ public class UpdateProblemDto
     public string Description { get; set; } = null!;
 
     public string? Status { get; set; }
-}
-
-public class ProblemDetailsDto : ProblemDto
-{
-    public AddressDto? Address { get; set; }
-
-    public ProblemCategoryDto? Category { get; set; }
-
-    public ICollection<ProblemPhotoDto> ProblemPhotos { get; set; } = new List<ProblemPhotoDto>();
 }
 

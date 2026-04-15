@@ -11,6 +11,13 @@ public class DtoMappingProfile : Profile
         CreateMap<Address, AddressDto>().ReverseMap();
         CreateMap<CreateAddressDto, Address>();
         CreateMap<UpdateAddressDto, Address>();
+        CreateMap<ParsedAddressDto, Address>()
+            .ForMember(dest => dest.AddressId, opt => opt.MapFrom(_ => Guid.NewGuid()))
+            .ForMember(dest => dest.City, opt => opt.MapFrom(src => src.City))
+            .ForMember(dest => dest.Street, opt => opt.MapFrom(src => src.Street))
+            .ForMember(dest => dest.BuildingNumber, opt => opt.MapFrom(src => src.BuildingNumber))
+            .ForMember(dest => dest.Latitude, opt => opt.Ignore())
+            .ForMember(dest => dest.Longitude, opt => opt.Ignore());
 
         // User Mappings
         CreateMap<User, UserDto>()
@@ -42,13 +49,25 @@ public class DtoMappingProfile : Profile
 
         // Problem Mappings
         CreateMap<Problem, ProblemDto>().ReverseMap();
-        CreateMap<CreateProblemDto, Problem>();
+        CreateMap<CreateProblemDto, Problem>()
+            .ForMember(dest => dest.ProblemId, opt => opt.MapFrom(src => Guid.NewGuid()))
+            // Мапимо плоскі поля адреси з DTO у навігаційну властивість Address
+            .ForMember(dest => dest.Address, opt => opt.MapFrom(src => new Address
+            {
+                AddressId = Guid.NewGuid(), // Генеруємо ID для нової адреси
+                City = src.City,
+                Street = src.Street,
+                BuildingNumber = src.BuildingNumber,
+                Latitude = src.Latitude,
+                Longitude = src.Longitude
+            }))
+            // Ігноруємо фотографії, бо IFormFile треба обробляти вручну в контролері через MemoryStream
+            .ForMember(dest => dest.ProblemPhotos, opt => opt.Ignore())
+            // Якщо імена співпадають (Title -> Title), AutoMapper зробить це сам. 
+            // Але якщо у DTO поле називається з маленької літери, вкажи явно:
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => "Pending")); // Дефолтний статус
         CreateMap<UpdateProblemDto, Problem>();
-        CreateMap<Problem, ProblemDetailsDto>()
-            .ForMember(dest => dest.Address, opt => opt.MapFrom(src => src.Address))
-            .ForMember(dest => dest.Category, opt => opt.MapFrom(src => src.Category))
-            .ForMember(dest => dest.ProblemPhotos, opt => opt.MapFrom(src => src.ProblemPhotos));
-
+       
         // Appeal Mappings
         CreateMap<Appeal, AppealDto>().ReverseMap();
         CreateMap<CreateAppealDto, Appeal>();
