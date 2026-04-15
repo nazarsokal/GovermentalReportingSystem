@@ -10,12 +10,12 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using AutoMapper;
-using Microsoft.EntityFrameworkCore;
+using BCrypt.Net;
 using Microsoft.IdentityModel.Tokens;
 using ProblemReportingSystem.Application.DTOs;
 using ProblemReportingSystem.Application.ServiceAbstractions;
 using ProblemReportingSystem.DAL.Entities;
-using ProblemReportingSystem.DAL.Infrastructure;
+using ProblemReportingSystem.DAL.RepositoryAbstractions;
 
 /// <summary>
 /// Implementation of the authentication service for user registration, login, and OAuth operations.
@@ -23,20 +23,19 @@ using ProblemReportingSystem.DAL.Infrastructure;
 /// </summary>
 public class AuthenticationService : IAuthenticationService
 {
-    private readonly ProblemReportingSystemDbContext _dbContext;
+    private readonly IUserRepository _userRepository;
     private readonly IMapper _mapper;
     private readonly string _jwtSecret;
     private readonly string _jwtIssuer;
     private readonly string _jwtAudience;
     private readonly int _jwtExpirationMinutes;
-    private readonly int _refreshTokenExpirationDays;
 
     public AuthenticationService(
-        ProblemReportingSystemDbContext dbContext,
+        IUserRepository userRepository,
         IMapper mapper,
         IConfiguration configuration)
     {
-        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         
         var jwtSettings = configuration.GetSection("JwtSettings");
@@ -44,7 +43,6 @@ public class AuthenticationService : IAuthenticationService
         _jwtIssuer = jwtSettings["Issuer"] ?? throw new InvalidOperationException("JWT Issuer not configured");
         _jwtAudience = jwtSettings["Audience"] ?? throw new InvalidOperationException("JWT Audience not configured");
         _jwtExpirationMinutes = int.Parse(jwtSettings["ExpirationMinutes"] ?? "60");
-        _refreshTokenExpirationDays = int.Parse(jwtSettings["RefreshTokenExpirationDays"] ?? "7");
     }
 
     /// <summary>
@@ -67,8 +65,8 @@ public class AuthenticationService : IAuthenticationService
             }
 
             // Check if user already exists
-            var existingUser = await _dbContext.Users
-                .FirstOrDefaultAsync(u => u.Email == registerDto.Email, cancellationToken);
+            var existingUser = await _userRepository
+                .GetByEmailAsync(registerDto.Email, cancellationToken);
 
             if (existingUser != null)
             {
@@ -86,27 +84,17 @@ public class AuthenticationService : IAuthenticationService
                 UserId = Guid.NewGuid(),
                 FullName = registerDto.FullName,
                 Email = registerDto.Email,
+                PasswordHash = HashPassword(registerDto.Password),
                 IsActive = true
             };
 
-            // Hash and store password (implementation details depend on your identity framework)
-            // This is a placeholder - implement actual password hashing
-            var hashedPassword = HashPassword(registerDto.Password);
-            
-            // Note: You may need to extend the User entity to include password hash
-            // For now, this assumes you have a password storage mechanism
-
-            _dbContext.Users.Add(user);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            var createdUser = await _userRepository.CreateAsync(user);
 
             // Generate tokens
-            var accessToken = GenerateAccessToken(user);
+            var accessToken = GenerateAccessToken(createdUser);
             var refreshToken = GenerateRefreshToken();
 
-            // Store refresh token (implement token storage in database)
-            // await StoreRefreshTokenAsync(user.UserId, refreshToken, cancellationToken);
-
-            var userDto = _mapper.Map<UserDto>(user);
+            var userDto = _mapper.Map<UserDto>(createdUser);
 
             return new AuthenticationResponseDto
             {
@@ -149,8 +137,8 @@ public class AuthenticationService : IAuthenticationService
             }
 
             // Find user by email
-            var user = await _dbContext.Users
-                .FirstOrDefaultAsync(u => u.Email == loginDto.Email, cancellationToken);
+            var user = await _userRepository
+                .GetByEmailAsync(loginDto.Email, cancellationToken);
 
             if (user == null)
             {
@@ -173,12 +161,8 @@ public class AuthenticationService : IAuthenticationService
                 };
             }
 
-            // Verify password (implement actual password verification)
-            // var passwordValid = VerifyPassword(loginDto.Password, hashedPassword);
-            // For now, this is a placeholder
-            var passwordValid = VerifyPassword(loginDto.Password, user.Email);
-
-            if (!passwordValid)
+            // Verify password
+            if (string.IsNullOrWhiteSpace(user.PasswordHash) || !VerifyPassword(loginDto.Password, user.PasswordHash))
             {
                 return new AuthenticationResponseDto
                 {
@@ -191,9 +175,6 @@ public class AuthenticationService : IAuthenticationService
             // Generate tokens
             var accessToken = GenerateAccessToken(user);
             var refreshToken = GenerateRefreshToken();
-
-            // Store refresh token (implement token storage in database)
-            // await StoreRefreshTokenAsync(user.UserId, refreshToken, cancellationToken);
 
             var userDto = _mapper.Map<UserDto>(user);
 
@@ -231,29 +212,33 @@ public class AuthenticationService : IAuthenticationService
             // var validToken = await ValidateGoogleTokenAsync(googleAuthDto.IdToken, cancellationToken);
             // if (!validToken) return new AuthenticationResponseDto { Success = false, Message = "Invalid Google token" };
 
+            User? user = null;
+
             // Try to find user by Google ID
-            var user = await _dbContext.Users
-                .FirstOrDefaultAsync(u => u.GoogleAuthId == googleAuthDto.GoogleId, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(googleAuthDto.GoogleId))
+            {
+                user = await _userRepository
+                    .GetByGoogleAuthIdAsync(googleAuthDto.GoogleId, cancellationToken);
+            }
 
             // If user doesn't exist, try to find by email
             if (user == null && !string.IsNullOrWhiteSpace(googleAuthDto.Email))
             {
-                user = await _dbContext.Users
-                    .FirstOrDefaultAsync(u => u.Email == googleAuthDto.Email, cancellationToken);
+                user = await _userRepository
+                    .GetByEmailAsync(googleAuthDto.Email, cancellationToken);
 
                 // If user exists with email but no Google ID, link the Google account
-                if (user != null)
+                if (user != null && string.IsNullOrWhiteSpace(googleAuthDto.GoogleId) == false)
                 {
                     user.GoogleAuthId = googleAuthDto.GoogleId;
-                    _dbContext.Users.Update(user);
-                    await _dbContext.SaveChangesAsync(cancellationToken);
+                    await _userRepository.UpdateAsync(user);
                 }
             }
 
             // If user still doesn't exist, create new user
             if (user == null)
             {
-                user = new User
+                var newUser = new User
                 {
                     UserId = Guid.NewGuid(),
                     FullName = googleAuthDto.FullName ?? "Google User",
@@ -262,8 +247,7 @@ public class AuthenticationService : IAuthenticationService
                     IsActive = true
                 };
 
-                _dbContext.Users.Add(user);
-                await _dbContext.SaveChangesAsync(cancellationToken);
+                user = await _userRepository.CreateAsync(newUser);
             }
 
             // Check if user is active
@@ -280,9 +264,6 @@ public class AuthenticationService : IAuthenticationService
             // Generate tokens
             var accessToken = GenerateAccessToken(user);
             var refreshToken = GenerateRefreshToken();
-
-            // Store refresh token
-            // await StoreRefreshTokenAsync(user.UserId, refreshToken, cancellationToken);
 
             var userDto = _mapper.Map<UserDto>(user);
 
@@ -322,17 +303,16 @@ public class AuthenticationService : IAuthenticationService
             // Check if user already exists
             if (!string.IsNullOrWhiteSpace(googleAuthDto.Email))
             {
-                var existingUser = await _dbContext.Users
-                    .FirstOrDefaultAsync(u => u.Email == googleAuthDto.Email, cancellationToken);
+                var existingUser = await _userRepository
+                    .GetByEmailAsync(googleAuthDto.Email, cancellationToken);
 
                 if (existingUser != null)
                 {
                     // If user exists but doesn't have Google ID, link it
-                    if (string.IsNullOrWhiteSpace(existingUser.GoogleAuthId))
+                    if (string.IsNullOrWhiteSpace(existingUser.GoogleAuthId) && !string.IsNullOrWhiteSpace(googleAuthDto.GoogleId))
                     {
                         existingUser.GoogleAuthId = googleAuthDto.GoogleId;
-                        _dbContext.Users.Update(existingUser);
-                        await _dbContext.SaveChangesAsync(cancellationToken);
+                        await _userRepository.UpdateAsync(existingUser);
                     }
 
                     // Proceed with authentication instead
@@ -341,17 +321,20 @@ public class AuthenticationService : IAuthenticationService
             }
 
             // Check if Google ID is already registered
-            var googleUser = await _dbContext.Users
-                .FirstOrDefaultAsync(u => u.GoogleAuthId == googleAuthDto.GoogleId, cancellationToken);
-
-            if (googleUser != null)
+            if (!string.IsNullOrWhiteSpace(googleAuthDto.GoogleId))
             {
-                return new AuthenticationResponseDto
+                var googleUser = await _userRepository
+                    .GetByGoogleAuthIdAsync(googleAuthDto.GoogleId, cancellationToken);
+
+                if (googleUser != null)
                 {
-                    Success = false,
-                    Message = "This Google account is already registered",
-                    Errors = new List<string> { "Google account already in use" }
-                };
+                    return new AuthenticationResponseDto
+                    {
+                        Success = false,
+                        Message = "This Google account is already registered",
+                        Errors = new List<string> { "Google account already in use" }
+                    };
+                }
             }
 
             // Create new user
@@ -364,17 +347,13 @@ public class AuthenticationService : IAuthenticationService
                 IsActive = true
             };
 
-            _dbContext.Users.Add(newUser);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            var createdUser = await _userRepository.CreateAsync(newUser);
 
             // Generate tokens
-            var accessToken = GenerateAccessToken(newUser);
+            var accessToken = GenerateAccessToken(createdUser);
             var refreshToken = GenerateRefreshToken();
 
-            // Store refresh token
-            // await StoreRefreshTokenAsync(newUser.UserId, refreshToken, cancellationToken);
-
-            var userDto = _mapper.Map<UserDto>(newUser);
+            var userDto = _mapper.Map<UserDto>(createdUser);
 
             return new AuthenticationResponseDto
             {
@@ -426,7 +405,7 @@ public class AuthenticationService : IAuthenticationService
             // In production, validate against stored tokens in database
 
             // Generate new access token
-            // var user = await _dbContext.Users.FindAsync(new object[] { storedToken.UserId }, cancellationToken: cancellationToken);
+            // var user = await _userRepository.GetByIdAsync(storedToken.UserId, cancellationToken);
             
             // Placeholder: Create a demo response
             var newAccessToken = GenerateAccessToken(new User { UserId = Guid.NewGuid(), Email = "user@example.com", FullName = "User" });
@@ -462,14 +441,14 @@ public class AuthenticationService : IAuthenticationService
             if (string.IsNullOrWhiteSpace(email))
                 return false;
 
-            var user = await _dbContext.Users
-                .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+            var user = await _userRepository
+                .GetByEmailAsync(email, cancellationToken);
 
             if (user == null)
                 return false;
 
             // Generate reset token
-            var resetToken = GenerateResetToken();
+            // var resetToken = GenerateResetToken();
 
             // Store reset token with expiration (implement token storage)
             // await StorePasswordResetTokenAsync(user.UserId, resetToken, cancellationToken);
@@ -499,8 +478,8 @@ public class AuthenticationService : IAuthenticationService
                 return false;
             }
 
-            var user = await _dbContext.Users
-                .FirstOrDefaultAsync(u => u.Email == resetPasswordDto.Email, cancellationToken);
+            var user = await _userRepository
+                .GetByEmailAsync(resetPasswordDto.Email, cancellationToken);
 
             if (user == null)
                 return false;
@@ -510,11 +489,9 @@ public class AuthenticationService : IAuthenticationService
             // if (!tokenValid) return false;
 
             // Update password (implement password update)
-            // var hashedPassword = HashPassword(resetPasswordDto.NewPassword);
-            // user.PasswordHash = hashedPassword;
+            user.PasswordHash = HashPassword(resetPasswordDto.NewPassword);
 
-            _dbContext.Users.Update(user);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            await _userRepository.UpdateAsync(user);
 
             // Invalidate reset token
             // await InvalidatePasswordResetTokenAsync(user.UserId, resetPasswordDto.ResetToken, cancellationToken);
@@ -537,21 +514,19 @@ public class AuthenticationService : IAuthenticationService
             if (changePasswordDto.NewPassword != changePasswordDto.ConfirmPassword)
                 return false;
 
-            var user = await _dbContext.Users.FindAsync(new object[] { userId }, cancellationToken: cancellationToken);
+            var user = await _userRepository.GetByIdAsync(userId);
 
             if (user == null)
                 return false;
 
             // Verify current password (implement password verification)
-            // var passwordValid = VerifyPassword(changePasswordDto.CurrentPassword, user.PasswordHash);
-            // if (!passwordValid) return false;
+            if (string.IsNullOrWhiteSpace(user.PasswordHash) || !VerifyPassword(changePasswordDto.CurrentPassword, user.PasswordHash))
+                return false;
 
             // Update password (implement password update)
-            // var hashedPassword = HashPassword(changePasswordDto.NewPassword);
-            // user.PasswordHash = hashedPassword;
+            user.PasswordHash = HashPassword(changePasswordDto.NewPassword);
 
-            _dbContext.Users.Update(user);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            await _userRepository.UpdateAsync(user);
 
             return true;
         }
@@ -572,8 +547,8 @@ public class AuthenticationService : IAuthenticationService
                 string.IsNullOrWhiteSpace(verifyEmailDto.VerificationToken))
                 return false;
 
-            var user = await _dbContext.Users
-                .FirstOrDefaultAsync(u => u.Email == verifyEmailDto.Email, cancellationToken);
+            var user = await _userRepository
+                .GetByEmailAsync(verifyEmailDto.Email, cancellationToken);
 
             if (user == null)
                 return false;
@@ -585,8 +560,7 @@ public class AuthenticationService : IAuthenticationService
             // Mark email as verified (implement email verification tracking)
             // user.EmailVerified = true;
 
-            _dbContext.Users.Update(user);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            await _userRepository.UpdateAsync(user);
 
             return true;
         }
@@ -606,14 +580,14 @@ public class AuthenticationService : IAuthenticationService
             if (string.IsNullOrWhiteSpace(email))
                 return false;
 
-            var user = await _dbContext.Users
-                .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+            var user = await _userRepository
+                .GetByEmailAsync(email, cancellationToken);
 
             if (user == null)
                 return false;
 
             // Generate verification token
-            var verificationToken = GenerateResetToken();
+            // var verificationToken = GenerateResetToken();
 
             // Store verification token (implement token storage)
             // await StoreEmailVerificationTokenAsync(user.UserId, verificationToken, cancellationToken);
@@ -634,17 +608,10 @@ public class AuthenticationService : IAuthenticationService
     /// </summary>
     public async Task<bool> LogoutAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            // Invalidate all refresh tokens for the user (implement token invalidation)
-            // await InvalidateAllRefreshTokensAsync(userId, cancellationToken);
+        // Invalidate all refresh tokens for the user (implement token invalidation)
+        // await InvalidateAllRefreshTokensAsync(userId, cancellationToken);
 
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        return await Task.FromResult(true);
     }
 
     /// <summary>
@@ -654,22 +621,24 @@ public class AuthenticationService : IAuthenticationService
     {
         try
         {
-            var user = await _dbContext.Users.FindAsync(new object[] { userId }, cancellationToken: cancellationToken);
+            var user = await _userRepository.GetByIdAsync(userId);
 
             if (user == null)
                 return false;
 
             // Check if Google ID is already linked to another account
-            var existingGoogleUser = await _dbContext.Users
-                .FirstOrDefaultAsync(u => u.GoogleAuthId == googleAuthDto.GoogleId && u.UserId != userId, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(googleAuthDto.GoogleId))
+            {
+                var existingGoogleUser = await _userRepository
+                    .GetByGoogleAuthIdAsync(googleAuthDto.GoogleId, cancellationToken);
 
-            if (existingGoogleUser != null)
-                return false;
+                if (existingGoogleUser != null && existingGoogleUser.UserId != userId)
+                    return false;
+            }
 
             // Link Google account
             user.GoogleAuthId = googleAuthDto.GoogleId;
-            _dbContext.Users.Update(user);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            await _userRepository.UpdateAsync(user);
 
             return true;
         }
@@ -686,15 +655,14 @@ public class AuthenticationService : IAuthenticationService
     {
         try
         {
-            var user = await _dbContext.Users.FindAsync(new object[] { userId }, cancellationToken: cancellationToken);
+            var user = await _userRepository.GetByIdAsync(userId);
 
             if (user == null)
                 return false;
 
             // Unlink Google account
             user.GoogleAuthId = null;
-            _dbContext.Users.Update(user);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            await _userRepository.UpdateAsync(user);
 
             return true;
         }
@@ -714,7 +682,7 @@ public class AuthenticationService : IAuthenticationService
             if (string.IsNullOrWhiteSpace(email))
                 return false;
 
-            return await _dbContext.Users.AnyAsync(u => u.Email == email, cancellationToken);
+            return await _userRepository.ExistsByEmailAsync(email, cancellationToken);
         }
         catch
         {
@@ -745,13 +713,13 @@ public class AuthenticationService : IAuthenticationService
                 ValidAudience = _jwtAudience,
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.Zero
-            }, out SecurityToken validatedToken);
+            }, out _);
 
             var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
                 return null;
 
-            var user = await _dbContext.Users.FindAsync(new object[] { userId }, cancellationToken: cancellationToken);
+            var user = await _userRepository.GetByIdAsync(userId);
 
             return user != null ? _mapper.Map<UserDto>(user) : null;
         }
@@ -818,23 +786,32 @@ public class AuthenticationService : IAuthenticationService
     }
 
     /// <summary>
-    /// Hashes a password (placeholder implementation).
+    /// Hashes a password using BCrypt algorithm.
     /// </summary>
-    private string HashPassword(string password)
+    public static string HashPassword(string password)
     {
-        // TODO: Implement proper password hashing using BCrypt or similar
-        // Example: return BCrypt.Net.BCrypt.HashPassword(password);
-        return Convert.ToBase64String(Encoding.UTF8.GetBytes(password)); // Placeholder
+        if (string.IsNullOrWhiteSpace(password))
+            throw new ArgumentException("Password cannot be null or empty", nameof(password));
+        
+        return BCrypt.HashPassword(password, workFactor: 12);
     }
 
     /// <summary>
-    /// Verifies a password against its hash (placeholder implementation).
+    /// Verifies a password against its BCrypt hash.
     /// </summary>
     private bool VerifyPassword(string password, string hash)
     {
-        // TODO: Implement proper password verification using BCrypt or similar
-        // Example: return BCrypt.Net.BCrypt.Verify(password, hash);
-        return Convert.ToBase64String(Encoding.UTF8.GetBytes(password)) == hash; // Placeholder
+        if (string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(hash))
+            return false;
+
+        try
+        {
+            return BCrypt.Verify(password, hash);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>
@@ -879,4 +856,3 @@ public class AuthenticationService : IAuthenticationService
         }
     }
 }
-

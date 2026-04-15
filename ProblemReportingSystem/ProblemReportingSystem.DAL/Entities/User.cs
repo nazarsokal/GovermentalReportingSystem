@@ -1,15 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ProblemReportingSystem.DAL.Entities;
 
-public partial class User
+public partial class User : IUserEntity
 {
-    public Guid UserId { get; set; }
-
     public string FullName { get; set; } = null!;
 
     public string Email { get; set; } = null!;
+    
+    [Column("password_hash")]
+    public string? PasswordHash { get; set; } = null!;
 
     public string? GoogleAuthId { get; set; }
 

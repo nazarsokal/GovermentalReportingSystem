@@ -1,9 +1,12 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using ProblemReportingSystem.Application.ServiceAbstractions;
 using ProblemReportingSystem.Application.Services;
 using ProblemReportingSystem.DAL.Infrastructure;
+using ProblemReportingSystem.DAL.Repositories;
+using ProblemReportingSystem.DAL.RepositoryAbstractions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +22,10 @@ builder.Services.AddDbContext<ProblemReportingSystemDbContext>();
 
 // Add AutoMapper
 builder.Services.AddAutoMapper(_ => { }, AppDomain.CurrentDomain.GetAssemblies());
+builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+
+builder.Services.AddDbContext<ProblemReportingSystemDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -58,6 +65,9 @@ builder.Services.AddAuthentication(options =>
 // Register Authentication Service
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 
+builder.Services.AddScoped(typeof(IProblemReportingSystemRepository<>),
+    typeof(ProblemReportingSystemRepository<>));
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 // Add CORS if needed
 builder.Services.AddCors(options =>
 {

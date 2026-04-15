@@ -13,9 +13,12 @@ public class DtoMappingProfile : Profile
         CreateMap<UpdateAddressDto, Address>();
 
         // User Mappings
-        CreateMap<User, UserDto>().ReverseMap();
-        CreateMap<CreateUserDto, User>();
-        CreateMap<UpdateUserDto, User>();
+        CreateMap<User, UserDto>()
+            .ReverseMap();
+        CreateMap<CreateUserDto, User>()
+            .ForMember(dest => dest.PasswordHash, opt => opt.Ignore()); // Password will be hashed separately
+        CreateMap<UpdateUserDto, User>()
+            .ForMember(dest => dest.PasswordHash, opt => opt.Ignore()); // Password will be hashed separately
         CreateMap<User, UserDetailsDto>()
             .ForMember(dest => dest.Admin, opt => opt.MapFrom(src => src.Admin))
             .ForMember(dest => dest.CouncilEmployee, opt => opt.MapFrom(src => src.CouncilEmployee));

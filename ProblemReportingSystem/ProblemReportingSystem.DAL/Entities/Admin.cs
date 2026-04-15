@@ -3,11 +3,9 @@ using System.Collections.Generic;
 
 namespace ProblemReportingSystem.DAL.Entities;
 
-public partial class Admin
+public partial class Admin : IUserEntity
 {
     public Guid AdminId { get; set; }
-
-    public Guid UserId { get; set; }
 
     public string AccessLevel { get; set; } = null!;
 

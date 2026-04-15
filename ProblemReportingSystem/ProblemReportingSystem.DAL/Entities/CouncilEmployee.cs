@@ -3,11 +3,9 @@ using System.Collections.Generic;
 
 namespace ProblemReportingSystem.DAL.Entities;
 
-public partial class CouncilEmployee
+public partial class CouncilEmployee : IUserEntity
 {
     public Guid EmployeeId { get; set; }
-
-    public Guid UserId { get; set; }
 
     public Guid CouncilId { get; set; }
 
