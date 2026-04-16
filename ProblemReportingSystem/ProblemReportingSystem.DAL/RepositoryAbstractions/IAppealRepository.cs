@@ -11,5 +11,10 @@ public interface IAppealRepository : IProblemReportingSystemRepository<Appeal>
     Task<IEnumerable<Appeal>> GetAppealsByStatusAsync(Guid councilId, string status);
 
     Task<Appeal?> GetAppealWithDetailsAsync(Guid appealId);
-}
 
+    Task<IEnumerable<Appeal>> GetAllAppealsWithDetailsAsync();
+
+    Task<IEnumerable<Appeal>> GetUserAppealsWithDetailsAsync(Guid userId);
+
+    Task<IEnumerable<Appeal>> GetUnassignedAppealsWithDetailsAsync();
+}

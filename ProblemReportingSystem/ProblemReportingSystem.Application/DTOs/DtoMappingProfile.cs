@@ -77,7 +77,28 @@ public class DtoMappingProfile : Profile
         CreateMap<UpdateProblemDto, Problem>();
        
         // Appeal Mappings
-        CreateMap<Appeal, AppealDto>().ReverseMap();
+        CreateMap<Appeal, AppealDto>()
+            .ForMember(dest => dest.UserFullName, opt => opt.MapFrom(src => src.User.FullName))
+            .ForMember(dest => dest.ProblemDto, opt => opt.MapFrom(src => new CreateProblemDto
+            {
+                UserId = src.UserId,
+                CategoryId = src.Problem.CategoryId,
+                Title = src.Problem.Title,
+                Description = src.Problem.Description,
+                City = src.Problem.Address.City,
+                Street = src.Problem.Address.Street,
+                BuildingNumber = src.Problem.Address.BuildingNumber,
+                Latitude = src.Problem.Address.Latitude,
+                Longitude = src.Problem.Address.Longitude,
+                Photos = src.Problem.ProblemPhotos != null
+                    ? src.Problem.ProblemPhotos.Select(p => new CreateProblemPhotoDto
+                    {
+                        ProblemId = src.Problem.ProblemId,
+                        ImageData = p.ImageData,
+                        ContentType = p.ContentType
+                    }).ToList()
+                    : new List<CreateProblemPhotoDto>()
+            }));
         CreateMap<CreateAppealDto, Appeal>();
         CreateMap<UpdateAppealDto, Appeal>();
         CreateMap<Appeal, AppealDetailsDto>()

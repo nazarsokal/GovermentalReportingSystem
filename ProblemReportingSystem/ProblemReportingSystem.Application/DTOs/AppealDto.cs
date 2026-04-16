@@ -6,6 +6,8 @@ public class AppealDto
 
     public Guid UserId { get; set; }
 
+    public string? UserFullName { get; set; }
+
     public CreateProblemDto ProblemDto { get; set; }
 
     public Guid? AssignedEmployeeId { get; set; }
@@ -39,4 +41,3 @@ public class AppealDetailsDto : AppealDto
 
     public CouncilEmployeeDto? AssignedEmployee { get; set; }
 }
-

@@ -63,5 +63,48 @@ public class AppealRepository : ProblemReportingSystemRepository<Appeal>, IAppea
             .Include(a => a.User)
             .FirstOrDefaultAsync(a => a.AppealId == appealId);
     }
-}
 
+    public async Task<IEnumerable<Appeal>> GetAllAppealsWithDetailsAsync()
+    {
+        return await _context.Appeals
+            .Include(a => a.Problem)
+            .ThenInclude(p => p.Address)
+            .Include(a => a.Problem)
+            .ThenInclude(p => p.Category)
+            .Include(a => a.Problem)
+            .ThenInclude(p => p.ProblemPhotos)
+            .Include(a => a.AssignedEmployee)
+            .Include(a => a.User)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Appeal>> GetUserAppealsWithDetailsAsync(Guid userId)
+    {
+        return await _context.Appeals
+            .Where(a => a.UserId == userId)
+            .Include(a => a.Problem)
+            .ThenInclude(p => p.Address)
+            .Include(a => a.Problem)
+            .ThenInclude(p => p.Category)
+            .Include(a => a.Problem)
+            .ThenInclude(p => p.ProblemPhotos)
+            .Include(a => a.AssignedEmployee)
+            .Include(a => a.User)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Appeal>> GetUnassignedAppealsWithDetailsAsync()
+    {
+        return await _context.Appeals
+            .Where(a => a.AssignedEmployeeId == null)
+            .Include(a => a.Problem)
+            .ThenInclude(p => p.Address)
+            .Include(a => a.Problem)
+            .ThenInclude(p => p.Category)
+            .Include(a => a.Problem)
+            .ThenInclude(p => p.ProblemPhotos)
+            .Include(a => a.AssignedEmployee)
+            .Include(a => a.User)
+            .ToListAsync();
+    }
+}
