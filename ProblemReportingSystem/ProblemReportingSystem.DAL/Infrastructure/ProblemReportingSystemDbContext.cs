@@ -314,7 +314,7 @@ public partial class ProblemReportingSystemDbContext : DbContext
                 .HasMaxLength(255)
                 .HasColumnName("image_data");
             entity.Property(e => e.ContentType)
-                .HasMaxLength(6)
+                .HasMaxLength(20)
                 .HasColumnName("content_type");
             entity.Property(e => e.ProblemId).HasColumnName("problem_id");
 

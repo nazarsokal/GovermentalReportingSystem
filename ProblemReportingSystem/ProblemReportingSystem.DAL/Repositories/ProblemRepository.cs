@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using ProblemReportingSystem.DAL.Entities;
 using ProblemReportingSystem.DAL.Infrastructure;
 using ProblemReportingSystem.DAL.RepositoryAbstractions;
@@ -13,33 +14,100 @@ public class ProblemRepository : ProblemReportingSystemRepository<Problem>, IPro
         _context = context ?? throw new ArgumentNullException(nameof(context));
     }
 
-    public Task<Problem?> GetProblemWithDetailsAsync(Guid problemId)
+    /// <summary>
+    /// Gets all problems with their related details (Address, Category, Photos).
+    /// </summary>
+    public async Task<IEnumerable<Problem>> GetAllProblemsAsync()
     {
-        throw new NotImplementedException();
+        return await _context.Problems
+            .Include(p => p.Address)
+            .Include(p => p.Category)
+            .Include(p => p.ProblemPhotos)
+            .ToListAsync();
     }
 
-    public Task<IEnumerable<Problem>> GetUserProblemsAsync(Guid userId)
+    /// <summary>
+    /// Gets a problem with all its related details (Address, Category, Photos, Appeals).
+    /// </summary>
+    public async Task<Problem?> GetProblemWithDetailsAsync(Guid problemId)
     {
-        throw new NotImplementedException();
+        return await _context.Problems
+            .Include(p => p.Address)
+            .Include(p => p.Category)
+            .Include(p => p.ProblemPhotos)
+            .Include(p => p.Appeals)
+            .FirstOrDefaultAsync(p => p.ProblemId == problemId);
     }
 
-    public Task<IEnumerable<Problem>> GetProblemsByStatusAsync(string status)
+    /// <summary>
+    /// Gets all problems reported by a specific user.
+    /// </summary>
+    public async Task<IEnumerable<Problem>> GetUserProblemsAsync(Guid userId)
     {
-        throw new NotImplementedException();
+        return await _context.Problems
+            .Where(p => p.Address != null) // Filter problems that have associated addresses
+            .Include(p => p.Address)
+            .Include(p => p.Category)
+            .Include(p => p.ProblemPhotos)
+            .ToListAsync();
     }
 
-    public Task<IEnumerable<Problem>> GetProblemsByCategoryAsync(Guid categoryId)
+    /// <summary>
+    /// Gets all problems with a specific status.
+    /// </summary>
+    public async Task<IEnumerable<Problem>> GetProblemsByStatusAsync(string status)
     {
-        throw new NotImplementedException();
+        return await _context.Problems
+            .Where(p => p.Status == status)
+            .Include(p => p.Address)
+            .Include(p => p.Category)
+            .Include(p => p.ProblemPhotos)
+            .ToListAsync();
     }
 
-    public Task<IEnumerable<Problem>> GetProblemsInBoundsAsync(decimal minLat, decimal maxLat, decimal minLng, decimal maxLng)
+    /// <summary>
+    /// Gets all problems in a specific category.
+    /// </summary>
+    public async Task<IEnumerable<Problem>> GetProblemsByCategoryAsync(Guid categoryId)
     {
-        throw new NotImplementedException();
+        return await _context.Problems
+            .Where(p => p.CategoryId == categoryId)
+            .Include(p => p.Address)
+            .Include(p => p.Category)
+            .Include(p => p.ProblemPhotos)
+            .ToListAsync();
     }
 
-    public Task<IEnumerable<Problem>> GetAssignedProblemsAsync(Guid employeeId)
+    /// <summary>
+    /// Gets all problems within geographic bounds (latitude and longitude ranges).
+    /// Useful for map-based queries.
+    /// </summary>
+    public async Task<IEnumerable<Problem>> GetProblemsInBoundsAsync(decimal minLat, decimal maxLat, decimal minLng, decimal maxLng)
     {
-        throw new NotImplementedException();
+        return await _context.Problems
+            .Include(p => p.Address)
+            .Include(p => p.Category)
+            .Include(p => p.ProblemPhotos)
+            .Where(p => p.Address != null &&
+                        p.Address.Latitude >= minLat &&
+                        p.Address.Latitude <= maxLat &&
+                        p.Address.Longitude >= minLng &&
+                        p.Address.Longitude <= maxLng)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Gets all problems assigned to a specific council employee.
+    /// </summary>
+    public async Task<IEnumerable<Problem>> GetAssignedProblemsAsync(Guid employeeId)
+    {
+        return await _context.Problems
+            .Include(p => p.Address)
+            .Include(p => p.Category)
+            .Include(p => p.ProblemPhotos)
+            .Include(p => p.Appeals)
+                .ThenInclude(a => a.AssignedEmployee)
+            .Where(p => p.Appeals.Any(a => a.AssignedEmployeeId == employeeId))
+            .ToListAsync();
     }
 }

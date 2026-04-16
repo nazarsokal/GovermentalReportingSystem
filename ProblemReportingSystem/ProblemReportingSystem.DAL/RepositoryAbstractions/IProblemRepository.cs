@@ -4,6 +4,8 @@ namespace ProblemReportingSystem.DAL.RepositoryAbstractions;
 
 public interface IProblemRepository : IProblemReportingSystemRepository<Problem>
 {
+    Task<IEnumerable<Problem>> GetAllProblemsAsync();
+    
     Task<Problem?> GetProblemWithDetailsAsync(Guid problemId);
     
     Task<IEnumerable<Problem>> GetUserProblemsAsync(Guid userId);

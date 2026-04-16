@@ -15,6 +15,10 @@ public class ProblemDto
     public string? Status { get; set; }
 
     public DateTime? CreatedAt { get; set; }
+    
+    public AddressDto Address { get; set; } = null!;
+    
+    public List<ProblemPhotoDto> Photos { get; set; } = new List<ProblemPhotoDto>();
 }
 
 public class CreateProblemDto

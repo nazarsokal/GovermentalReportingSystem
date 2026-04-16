@@ -15,8 +15,10 @@ public partial class Address
 
     public string BuildingNumber { get; set; } = null!;
 
+    [Column("latitude")]
     public decimal Latitude { get; set; }
 
+    [Column("longitude")]
     public decimal Longitude { get; set; }
     
     [Column("district")] 

@@ -25,8 +25,4 @@
       <ProjectReference Include="..\ProblemReportingSystem.Application\ProblemReportingSystem.Application.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Contracts\Response\" />
-    </ItemGroup>
-
 </Project>

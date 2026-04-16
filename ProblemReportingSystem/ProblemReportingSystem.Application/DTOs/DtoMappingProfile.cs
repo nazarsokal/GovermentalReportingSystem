@@ -48,7 +48,9 @@ public class DtoMappingProfile : Profile
         CreateMap<UpdateProblemPhotoDto, ProblemPhoto>();
 
         // Problem Mappings
-        CreateMap<Problem, ProblemDto>().ReverseMap();
+        CreateMap<Problem, ProblemDto>()
+            .ForMember(dest => dest.Address, opt => opt.MapFrom(src => src.Address))
+            .ForMember(dest => dest.Photos, opt => opt.MapFrom(src => src.ProblemPhotos));
         CreateMap<CreateProblemDto, Problem>()
             .ForMember(dest => dest.ProblemId, opt => opt.MapFrom(src => Guid.NewGuid()))
             // Мапимо плоскі поля адреси з DTO у навігаційну властивість Address
@@ -61,11 +63,17 @@ public class DtoMappingProfile : Profile
                 Latitude = src.Latitude,
                 Longitude = src.Longitude
             }))
-            // Ігноруємо фотографії, бо IFormFile треба обробляти вручну в контролері через MemoryStream
-            .ForMember(dest => dest.ProblemPhotos, opt => opt.Ignore())
-            // Якщо імена співпадають (Title -> Title), AutoMapper зробить це сам. 
-            // Але якщо у DTO поле називається з маленької літери, вкажи явно:
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => "Pending")); // Дефолтний статус
+            //映射фотографії: конвертуємо CreateProblemPhotoDto у ProblemPhoto
+            .ForMember(dest => dest.ProblemPhotos, opt => opt.MapFrom(src => src.Photos != null 
+                ? src.Photos.Select(p => new ProblemPhoto
+                {
+                    PhotoId = Guid.NewGuid(),
+                    ImageData = p.ImageData,
+                    ContentType = p.ContentType
+                }).ToList()
+                : new List<ProblemPhoto>()))
+            // Дефолтний статус
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => "Pending"));
         CreateMap<UpdateProblemDto, Problem>();
        
         // Appeal Mappings
