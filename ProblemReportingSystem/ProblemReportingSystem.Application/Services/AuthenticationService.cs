@@ -746,6 +746,23 @@ public class AuthenticationService : IAuthenticationService
             new Claim(ClaimTypes.Name, user.FullName)
         };
 
+        // Add roles based on user entity relationships
+        if (user.Admin != null)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+        }
+
+        if (user.CouncilEmployee != null)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, "CouncilEmployee"));
+        }
+
+        // If user has no roles, add default "User" role
+        if (user.Admin == null && user.CouncilEmployee == null)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, "User"));
+        }
+
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),

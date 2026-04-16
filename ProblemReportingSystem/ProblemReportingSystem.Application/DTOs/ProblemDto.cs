@@ -23,6 +23,8 @@ public class ProblemDto
 
 public class CreateProblemDto
 {
+    public Guid UserId { get; set; }
+
     public Guid CategoryId { get; set; }
 
     public string Title { get; set; } = null!;
@@ -48,4 +50,3 @@ public class UpdateProblemDto
 
     public string? Status { get; set; }
 }
-

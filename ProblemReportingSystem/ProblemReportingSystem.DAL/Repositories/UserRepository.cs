@@ -18,7 +18,7 @@ public class UserRepository : ProblemReportingSystemRepository<User>, IUserRepos
     }
 
     /// <summary>
-    /// Get user by email address
+    /// Get user by email address with all related entities
     /// </summary>
     public async Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
@@ -26,11 +26,13 @@ public class UserRepository : ProblemReportingSystemRepository<User>, IUserRepos
             throw new ArgumentException("Email cannot be empty", nameof(email));
 
         return await _context.Users
+            .Include(u => u.Admin)
+            .Include(u => u.CouncilEmployee)
             .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
     }
 
     /// <summary>
-    /// Get user by Google Auth ID
+    /// Get user by Google Auth ID with all related entities
     /// </summary>
     public async Task<User?> GetByGoogleAuthIdAsync(string googleAuthId, CancellationToken cancellationToken = default)
     {
@@ -38,6 +40,8 @@ public class UserRepository : ProblemReportingSystemRepository<User>, IUserRepos
             throw new ArgumentException("Google Auth ID cannot be empty", nameof(googleAuthId));
 
         return await _context.Users
+            .Include(u => u.Admin)
+            .Include(u => u.CouncilEmployee)
             .FirstOrDefaultAsync(u => u.GoogleAuthId == googleAuthId, cancellationToken);
     }
 
@@ -66,7 +70,7 @@ public class UserRepository : ProblemReportingSystemRepository<User>, IUserRepos
     }
 
     /// <summary>
-    /// Get user by email excluding a specific user ID
+    /// Get user by email excluding a specific user ID with all related entities
     /// </summary>
     public async Task<User?> GetByEmailExcludingAsync(string email, Guid excludeUserId, CancellationToken cancellationToken = default)
     {
@@ -77,11 +81,13 @@ public class UserRepository : ProblemReportingSystemRepository<User>, IUserRepos
             throw new ArgumentException("User ID cannot be empty", nameof(excludeUserId));
 
         return await _context.Users
+            .Include(u => u.Admin)
+            .Include(u => u.CouncilEmployee)
             .FirstOrDefaultAsync(u => u.Email == email && u.UserId != excludeUserId, cancellationToken);
     }
 
     /// <summary>
-    /// Get user by Google Auth ID excluding a specific user ID
+    /// Get user by Google Auth ID excluding a specific user ID with all related entities
     /// </summary>
     public async Task<User?> GetByGoogleAuthIdExcludingAsync(string googleAuthId, Guid excludeUserId, CancellationToken cancellationToken = default)
     {
@@ -92,7 +98,8 @@ public class UserRepository : ProblemReportingSystemRepository<User>, IUserRepos
             throw new ArgumentException("User ID cannot be empty", nameof(excludeUserId));
 
         return await _context.Users
+            .Include(u => u.Admin)
+            .Include(u => u.CouncilEmployee)
             .FirstOrDefaultAsync(u => u.GoogleAuthId == googleAuthId && u.UserId != excludeUserId, cancellationToken);
     }
 }
-
