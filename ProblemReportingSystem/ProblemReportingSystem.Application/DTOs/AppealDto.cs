@@ -6,7 +6,7 @@ public class AppealDto
 
     public Guid UserId { get; set; }
 
-    public Guid ProblemId { get; set; }
+    public CreateProblemDto ProblemDto { get; set; }
 
     public Guid? AssignedEmployeeId { get; set; }
 

@@ -4,6 +4,7 @@ namespace ProblemReportingSystem.Application.ServiceAbstractions;
 
 public interface IAppealService
 {
+    Task<Guid> CreateAppealAsync(AppealDto createAppealDto);
     Task<IEnumerable<AppealDto>> GetCouncilAppealsByEmployeeAsync(Guid employeeId);
 
     Task<IEnumerable<AppealDto>> GetAppealsByCouncilAsync(Guid councilId);

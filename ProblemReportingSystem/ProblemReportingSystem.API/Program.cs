@@ -11,6 +11,7 @@ using ProblemReportingSystem.DAL.Infrastructure;
 using ProblemReportingSystem.DAL.Repositories;
 using ProblemReportingSystem.DAL.RepositoryAbstractions;
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 var builder = WebApplication.CreateBuilder(args);
 
 var cultureInfo = new CultureInfo("en-US");

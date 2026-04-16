@@ -10,6 +10,8 @@ public partial class Appeal
     public Guid UserId { get; set; }
 
     public Guid? AssignedEmployeeId { get; set; }
+    
+    public Guid? ProblemId { get; set; }
 
     public DateTime? CreatedAt { get; set; }
 

@@ -18,7 +18,7 @@ public class ProblemService : IProblemService
         _geolocateService = geolocateService;
         _mapper = mapper;
     }
-    public async Task<Guid> CreateProblem(CreateProblemDto createProblemDto)
+    public async Task<Problem> CreateProblem(CreateProblemDto createProblemDto)
     {
         var problem = _mapper.Map<Problem>(createProblemDto);
         
@@ -38,8 +38,7 @@ public class ProblemService : IProblemService
             }
         }
         
-        await _problemRepository.CreateAsync(problem);
-        return problem.ProblemId;
+        return problem;
     }
 
     public async Task<Guid> UpdateProblem(UpdateProblemDto updateProblemDto)

@@ -371,4 +371,13 @@ public partial class ProblemReportingSystemDbContext : DbContext
     }
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
+    
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        // Цей рядок автоматично конвертує всі DateTime властивості в тип 
+        // "timestamp with time zone" при створенні таблиць
+        configurationBuilder.Properties<DateTime>().HaveColumnType("timestamp with time zone");
+    
+        base.ConfigureConventions(configurationBuilder);
+    }
 }

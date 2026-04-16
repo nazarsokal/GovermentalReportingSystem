@@ -1,8 +1,11 @@
 namespace ProblemReportingSystem.API.Contracts.Request;
 
-public class CreateProblemRequest
+public class CreateAppealRequest
 {
     public Guid CategoryId { get; set; }
+
+    public Guid UserId { get; set; }
+    
     public required string Title { get; set; }
     public required string Description { get; set; }
     

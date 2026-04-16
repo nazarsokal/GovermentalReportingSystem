@@ -10,11 +10,23 @@ public class AppealService : IAppealService
 {
     private readonly IAppealRepository _appealRepository;
     private readonly IMapper _mapper;
+    private readonly IProblemService _problemService;
 
-    public AppealService(IAppealRepository appealRepository, IMapper mapper)
+    public AppealService(IAppealRepository appealRepository, IMapper mapper, IProblemService problemService)
     {
         _appealRepository = appealRepository ?? throw new ArgumentNullException(nameof(appealRepository));
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+        _problemService = problemService;
+    }
+
+    public async Task<Guid> CreateAppealAsync(AppealDto createAppealDto)
+    {
+        var appeal = _mapper.Map<Appeal>(createAppealDto);
+        var problem = await _problemService.CreateProblem(createAppealDto.ProblemDto);
+        appeal.Problem = problem;
+        
+        await _appealRepository.CreateAsync(appeal);
+        return appeal.AppealId;
     }
 
     public async Task<IEnumerable<AppealDto>> GetCouncilAppealsByEmployeeAsync(Guid employeeId)
