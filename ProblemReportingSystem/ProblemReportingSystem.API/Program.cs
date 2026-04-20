@@ -130,6 +130,14 @@ builder.Services.AddCors(options =>
                    .AllowAnyMethod()
                    .AllowAnyHeader();
     });
+
+    options.AddPolicy("AllowLocalhost3000", corsBuilder =>
+    {
+        corsBuilder.WithOrigins("http://localhost:3000", "https://localhost:3000")
+                   .AllowAnyMethod()
+                   .AllowAnyHeader()
+                   .AllowCredentials();
+    });
 });
 
 var app = builder.Build();
@@ -147,7 +155,7 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseHttpsRedirection();
 
 // Use CORS
-app.UseCors("AllowAll");
+app.UseCors("AllowLocalhost3000");
 
 // Use Authentication and Authorization
 app.UseAuthentication();

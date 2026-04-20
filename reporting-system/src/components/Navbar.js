@@ -37,7 +37,7 @@ function Navbar({ user, onLogout, currentPage, setCurrentPage }) {
 
         <div className="navbar-right">
           <div className="user-section">
-            <span className="user-email">{user?.email}</span>
+            <span className="user-email">{user?.fullName || user?.email}</span>
             <button className="logout-button" onClick={onLogout}>
               Logout
             </button>

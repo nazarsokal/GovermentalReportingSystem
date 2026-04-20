@@ -1,16 +1,72 @@
 import React, { useState } from 'react';
 import '../styles/LoginPage.css';
+import AuthService from '../services/AuthService';
 
 function LoginPage({ onLogin }) {
   const [email, setEmail] = useState('you@example.com');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isSignIn, setIsSignIn] = useState(true);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const handleSignIn = (e) => {
+  const handleSignIn = async (e) => {
     e.preventDefault();
-    if (email && password) {
-      onLogin(email);
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    if (!email || !password) {
+      setError('Please fill in all fields');
+      setLoading(false);
+      return;
     }
+
+    const result = await AuthService.login(email, password, rememberMe);
+
+    if (result.success) {
+      setSuccess('Login successful!');
+      setTimeout(() => {
+        onLogin(result.user);
+      }, 500);
+    } else {
+      setError(result.errors?.[0] || result.message || 'Login failed');
+    }
+    setLoading(false);
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    if (!email || !password || !fullName || !confirmPassword) {
+      setError('Please fill in all fields');
+      setLoading(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
+    const result = await AuthService.register(fullName, email, password, confirmPassword);
+
+    if (result.success) {
+      setSuccess('Registration successful! Logging in...');
+      setTimeout(() => {
+        onLogin(result.user);
+      }, 500);
+    } else {
+      setError(result.errors?.[0] || result.message || 'Registration failed');
+    }
+    setLoading(false);
   };
 
   return (
@@ -44,6 +100,9 @@ function LoginPage({ onLogin }) {
 
         {isSignIn ? (
           <form onSubmit={handleSignIn} className="login-form">
+            {error && <div className="alert alert-error">{error}</div>}
+            {success && <div className="alert alert-success">{success}</div>}
+
             <div className="form-group">
               <label>Email</label>
               <div className="input-wrapper">
@@ -56,6 +115,7 @@ function LoginPage({ onLogin }) {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   className="form-input"
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -72,15 +132,29 @@ function LoginPage({ onLogin }) {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="form-input"
+                  disabled={loading}
                 />
               </div>
             </div>
 
-            <button type="submit" className="signin-button">Sign In</button>
+            <div className="form-group checkbox-group">
+              <input
+                type="checkbox"
+                id="remember"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                disabled={loading}
+              />
+              <label htmlFor="remember">Remember me</label>
+            </div>
+
+            <button type="submit" className="signin-button" disabled={loading}>
+              {loading ? 'Signing In...' : 'Sign In'}
+            </button>
 
             <div className="divider">Or continue with</div>
 
-            <button type="button" className="google-button">
+            <button type="button" className="google-button" disabled={loading}>
               <svg viewBox="0 0 24 24" className="google-icon">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -91,7 +165,27 @@ function LoginPage({ onLogin }) {
             </button>
           </form>
         ) : (
-          <form onSubmit={handleSignIn} className="login-form">
+          <form onSubmit={handleRegister} className="login-form">
+            {error && <div className="alert alert-error">{error}</div>}
+            {success && <div className="alert alert-success">{success}</div>}
+
+            <div className="form-group">
+              <label>Full Name</label>
+              <div className="input-wrapper">
+                <svg className="input-icon" viewBox="0 0 24 24">
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"/>
+                </svg>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="John Doe"
+                  className="form-input"
+                  disabled={loading}
+                />
+              </div>
+            </div>
+
             <div className="form-group">
               <label>Email</label>
               <div className="input-wrapper">
@@ -104,6 +198,7 @@ function LoginPage({ onLogin }) {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   className="form-input"
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -120,11 +215,31 @@ function LoginPage({ onLogin }) {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="form-input"
+                  disabled={loading}
                 />
               </div>
             </div>
 
-            <button type="submit" className="signin-button">Create Account</button>
+            <div className="form-group">
+              <label>Confirm Password</label>
+              <div className="input-wrapper">
+                <svg className="input-icon" viewBox="0 0 24 24">
+                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.02c2.05.02 3.98.71 5.57 1.98H6.43c1.59-1.27 3.52-1.96 5.57-1.98zm0 14.48c-3.63-.91-6-4.05-6-7.5v-4.1h12v4.1c0 3.45-2.37 6.59-6 7.5z" fill="currentColor"/>
+                </svg>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="form-input"
+                  disabled={loading}
+                />
+              </div>
+            </div>
+
+            <button type="submit" className="signin-button" disabled={loading}>
+              {loading ? 'Creating Account...' : 'Create Account'}
+            </button>
           </form>
         )}
       </div>
