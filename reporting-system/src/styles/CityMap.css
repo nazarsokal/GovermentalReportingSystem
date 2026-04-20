@@ -1,0 +1,32 @@
+.city-map-container {
+  width: 100%;
+  height: 350px;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e5e7eb;
+}
+
+.city-map-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.map-credits {
+  font-size: 11px;
+  color: #9ca3af;
+  padding: 8px 12px;
+  background-color: #f9fafb;
+  margin: 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+@media (max-width: 768px) {
+  .city-map-container {
+    height: 250px;
+  }
+}
+
