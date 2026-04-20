@@ -26,7 +26,21 @@ public class DtoMappingProfile : Profile
             .ForMember(dest => dest.PasswordHash, opt => opt.Ignore()); // Password will be hashed separately
         CreateMap<UpdateUserDto, User>()
             .ForMember(dest => dest.PasswordHash, opt => opt.Ignore()); // Password will be hashed separately
+        CreateMap<RegisterDto, User>()
+            .ForMember(dest => dest.PasswordHash, opt => opt.Ignore()) // Password will be hashed separately
+            .ForMember(dest => dest.Address, opt => opt.MapFrom(src => new Address
+            {
+                AddressId = Guid.NewGuid(),
+                City = string.Empty,
+                Street = string.Empty,
+                BuildingNumber = string.Empty,
+                District = src.District,
+                Oblast = src.Oblast,
+                Latitude = 0m,
+                Longitude = 0m
+            }));
         CreateMap<User, UserDetailsDto>()
+            .ForMember(dest => dest.Address, opt => opt.MapFrom(src => src.Address))
             .ForMember(dest => dest.Admin, opt => opt.MapFrom(src => src.Admin))
             .ForMember(dest => dest.CouncilEmployee, opt => opt.MapFrom(src => src.CouncilEmployee));
 

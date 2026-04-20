@@ -8,6 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [accessToken, setAccessToken] = useState(null);
+  const [needsAddressSelection, setNeedsAddressSelection] = useState(false);
 
   // Check if user is already logged in on mount
   useEffect(() => {
@@ -32,12 +33,25 @@ export const AuthProvider = ({ children }) => {
     return result;
   };
 
-  const register = async (fullName, email, password, confirmPassword) => {
-    const result = await AuthService.register(fullName, email, password, confirmPassword);
+  const register = async (fullName, email, password, confirmPassword, district = null, oblast = null) => {
+    const result = await AuthService.register(fullName, email, password, confirmPassword, district, oblast);
     if (result.success) {
       setIsLoggedIn(true);
       setUser(result.user);
       setAccessToken(result.accessToken);
+      // If no address provided during registration, user needs to complete address selection
+      if (!district || !oblast) {
+        setNeedsAddressSelection(true);
+      }
+    }
+    return result;
+  };
+
+  const updateAddress = async (district, oblast) => {
+    const result = await AuthService.updateUserAddress(district, oblast);
+    if (result.success) {
+      setUser(result.user);
+      setNeedsAddressSelection(false);
     }
     return result;
   };
@@ -47,6 +61,7 @@ export const AuthProvider = ({ children }) => {
     setIsLoggedIn(false);
     setUser(null);
     setAccessToken(null);
+    setNeedsAddressSelection(false);
   };
 
   const value = {
@@ -54,8 +69,10 @@ export const AuthProvider = ({ children }) => {
     isLoggedIn,
     loading,
     accessToken,
+    needsAddressSelection,
     login,
     register,
+    updateAddress,
     logout,
   };
 

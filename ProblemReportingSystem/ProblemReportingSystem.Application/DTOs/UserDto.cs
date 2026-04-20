@@ -10,6 +10,8 @@ public class UserDto
 
     public string? GoogleAuthId { get; set; }
 
+    public Guid? AddressId { get; set; }
+
     public bool? IsActive { get; set; }
 }
 
@@ -22,6 +24,8 @@ public class CreateUserDto
     public string? Password { get; set; }
 
     public string? GoogleAuthId { get; set; }
+
+    public Guid? AddressId { get; set; }
 }
 
 public class UpdateUserDto
@@ -36,13 +40,16 @@ public class UpdateUserDto
 
     public string? GoogleAuthId { get; set; }
 
+    public Guid? AddressId { get; set; }
+
     public bool? IsActive { get; set; }
 }
 
 public class UserDetailsDto : UserDto
 {
+    public AddressDto? Address { get; set; }
+
     public AdminDto? Admin { get; set; }
 
     public CouncilEmployeeDto? CouncilEmployee { get; set; }
 }
-

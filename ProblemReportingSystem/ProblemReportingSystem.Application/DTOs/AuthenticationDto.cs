@@ -24,6 +24,16 @@ public class RegisterDto
     /// Confirmation password (must match Password)
     /// </summary>
     public string ConfirmPassword { get; set; } = null!;
+
+    /// <summary>
+    /// User's district
+    /// </summary>
+    public string? District { get; set; }
+
+    /// <summary>
+    /// User's oblast (region)
+    /// </summary>
+    public string? Oblast { get; set; }
 }
 
 /// <summary>
@@ -256,4 +266,3 @@ public class EmailAvailabilityDto
     /// </summary>
     public bool IsAvailable { get; set; }
 }
-

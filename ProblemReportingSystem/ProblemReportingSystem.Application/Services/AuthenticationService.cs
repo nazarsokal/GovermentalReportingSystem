@@ -78,15 +78,11 @@ public class AuthenticationService : IAuthenticationService
                 };
             }
 
-            // Create new user
-            var user = new User
-            {
-                UserId = Guid.NewGuid(),
-                FullName = registerDto.FullName,
-                Email = registerDto.Email,
-                PasswordHash = HashPassword(registerDto.Password),
-                IsActive = true
-            };
+            // Create new user with address using mapper
+            var user = _mapper.Map<User>(registerDto);
+            user.UserId = Guid.NewGuid();
+            user.PasswordHash = HashPassword(registerDto.Password);
+            user.IsActive = true;
 
             var createdUser = await _userRepository.CreateAsync(user);
 

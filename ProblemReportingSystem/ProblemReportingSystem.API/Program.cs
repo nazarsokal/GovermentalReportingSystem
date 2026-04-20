@@ -107,6 +107,7 @@ builder.Services.AddScoped<IPollService, PollService>();
 builder.Services.AddScoped<ICouncilEmployeeService, CouncilEmployeeService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<ICityCouncilService, CityCouncilService>();
+builder.Services.AddScoped<IAddressService, AddressService>();
 
 // Register Repositories
 builder.Services.AddScoped(typeof(IProblemReportingSystemRepository<>),
@@ -117,6 +118,7 @@ builder.Services.AddScoped<IAppealRepository, AppealRepository>();
 builder.Services.AddScoped<IPollRepository, PollRepository>();
 builder.Services.AddScoped<ICouncilEmployeeRepository, CouncilEmployeeRepository>();
 builder.Services.AddScoped<ICityCouncilRepository, CityCouncilRepository>();
+builder.Services.AddScoped<IAddressRepository, AddressRepository>();
 
 // Register HttpClient for GeolocateService
 builder.Services.AddHttpClient<IGeolocateService, GeolocateService>();

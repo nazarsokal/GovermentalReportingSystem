@@ -14,6 +14,12 @@ public partial class User : IUserEntity
     public string? PasswordHash { get; set; } = null!;
 
     public string? GoogleAuthId { get; set; }
+    
+    [Column("address_id")]
+    public Guid? AddressId { get; set; }
+    
+    [ForeignKey(nameof(AddressId))]
+    public virtual Address? Address { get; set; }
 
     public bool? IsActive { get; set; }
 

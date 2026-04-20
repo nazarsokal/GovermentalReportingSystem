@@ -2,7 +2,7 @@ const API_BASE_URL = 'http://localhost:5216';
 
 class AuthService {
   // Register new user
-  static async register(fullName, email, password, confirmPassword) {
+  static async register(fullName, email, password, confirmPassword, district = null, oblast = null) {
     try {
       const response = await fetch(`${API_BASE_URL}/api/Auth/register`, {
         method: 'POST',
@@ -14,6 +14,8 @@ class AuthService {
           email,
           password,
           confirmPassword,
+          district,
+          oblast,
         }),
       });
 
@@ -103,6 +105,55 @@ class AuthService {
     localStorage.removeItem('tokenType');
     localStorage.removeItem('expiresIn');
     localStorage.removeItem('user');
+  }
+
+  // Update user address
+  static async updateUserAddress(district, oblast) {
+    try {
+      const token = this.getAccessToken();
+      if (!token) {
+        throw new Error('No access token available');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/Auth/update-address`, {
+        method: 'PUT',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({
+          district,
+          oblast,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update stored user with new address info
+        const user = this.getUser();
+        if (user) {
+          user.district = district;
+          user.oblast = oblast;
+          localStorage.setItem('user', JSON.stringify(user));
+        }
+
+        return {
+          success: true,
+          user: data.user || user,
+          message: data.message,
+        };
+      } else {
+        return {
+          success: false,
+          errors: data.errors || ['Address update failed'],
+          message: data.message,
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        errors: [error.message],
+        message: 'An error occurred while updating address',
+      };
+    }
   }
 
   // Get stored user
