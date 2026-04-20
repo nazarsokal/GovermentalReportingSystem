@@ -130,6 +130,12 @@ public class AppealService : IAppealService
             return null;
         }
 
+        if (appeal.Problem == null)
+        {
+            _logger.LogWarning($"Appeal with ID {appealId} has no associated problem");
+            return null;
+        }
+
         appeal.Problem.Status = status;
         appeal.UpdatedAt = DateTime.UtcNow;
 
@@ -213,18 +219,18 @@ public class AppealService : IAppealService
         var stats = new AppealStatisticsDto
         {
             TotalAppeals = appealsList.Count,
-            ResolvedAppeals = appealsList.Count(a => a.Problem.Status == "Resolved"),
-            PendingAppeals = appealsList.Count(a => a.Problem.Status == "Pending"),
+            ResolvedAppeals = appealsList.Count(a => a.Problem != null && a.Problem.Status == "Resolved"),
+            PendingAppeals = appealsList.Count(a => a.Problem != null && a.Problem.Status == "Pending"),
             AssignedAppeals = appealsList.Count(a => a.AssignedEmployeeId.HasValue),
             UnassignedAppeals = appealsList.Count(a => !a.AssignedEmployeeId.HasValue),
             ResolutionRate = appealsList.Count > 0 
-                ? (double)appealsList.Count(a => a.Problem.Status == "Resolved") / appealsList.Count * 100 
+                ? (double)appealsList.Count(a => a.Problem != null && a.Problem.Status == "Resolved") / appealsList.Count * 100 
                 : 0,
             LastUpdated = DateTime.UtcNow
         };
 
         // Calculate average resolution time
-        var resolvedAppeals = appealsList.Where(a => a.Problem.Status == "Resolved").ToList();
+        var resolvedAppeals = appealsList.Where(a => a.Problem != null && a.Problem.Status == "Resolved").ToList();
         if (resolvedAppeals.Any())
         {
             var avgDays = resolvedAppeals
@@ -250,17 +256,17 @@ public class AppealService : IAppealService
         var stats = new AppealStatisticsDto
         {
             TotalAppeals = appealsList.Count,
-            ResolvedAppeals = appealsList.Count(a => a.Problem.Status == "Resolved"),
-            PendingAppeals = appealsList.Count(a => a.Problem.Status == "Pending"),
+            ResolvedAppeals = appealsList.Count(a => a.Problem != null && a.Problem.Status == "Resolved"),
+            PendingAppeals = appealsList.Count(a => a.Problem != null && a.Problem.Status == "Pending"),
             AssignedAppeals = appealsList.Count(a => a.AssignedEmployeeId.HasValue),
             UnassignedAppeals = appealsList.Count(a => !a.AssignedEmployeeId.HasValue),
             ResolutionRate = appealsList.Count > 0 
-                ? (double)appealsList.Count(a => a.Problem.Status == "Resolved") / appealsList.Count * 100 
+                ? (double)appealsList.Count(a => a.Problem != null && a.Problem.Status == "Resolved") / appealsList.Count * 100 
                 : 0,
             LastUpdated = DateTime.UtcNow
         };
 
-        var resolvedAppeals = appealsList.Where(a => a.Problem.Status == "Resolved").ToList();
+        var resolvedAppeals = appealsList.Where(a => a.Problem != null && a.Problem.Status == "Resolved").ToList();
         if (resolvedAppeals.Any())
         {
             var avgDays = resolvedAppeals
@@ -286,17 +292,17 @@ public class AppealService : IAppealService
         var stats = new AppealStatisticsDto
         {
             TotalAppeals = appealsList.Count,
-            ResolvedAppeals = appealsList.Count(a => a.Problem.Status == "Resolved"),
-            PendingAppeals = appealsList.Count(a => a.Problem.Status == "Pending"),
+            ResolvedAppeals = appealsList.Count(a => a.Problem != null && a.Problem.Status == "Resolved"),
+            PendingAppeals = appealsList.Count(a => a.Problem != null && a.Problem.Status == "Pending"),
             AssignedAppeals = appealsList.Count,
             UnassignedAppeals = 0,
             ResolutionRate = appealsList.Count > 0 
-                ? (double)appealsList.Count(a => a.Problem.Status == "Resolved") / appealsList.Count * 100 
+                ? (double)appealsList.Count(a => a.Problem != null && a.Problem.Status == "Resolved") / appealsList.Count * 100 
                 : 0,
             LastUpdated = DateTime.UtcNow
         };
 
-        var resolvedAppeals = appealsList.Where(a => a.Problem.Status == "Resolved").ToList();
+        var resolvedAppeals = appealsList.Where(a => a.Problem != null && a.Problem.Status == "Resolved").ToList();
         if (resolvedAppeals.Any())
         {
             var avgDays = resolvedAppeals
@@ -315,7 +321,8 @@ public class AppealService : IAppealService
         
         var appeals = _appealRepository.GetAll();
         return appeals
-            .GroupBy(a => a.Problem.Status ?? "Unknown")
+            .Where(a => a.Problem != null)
+            .GroupBy(a => a.Problem!.Status ?? "Unknown")
             .ToDictionary(g => g.Key, g => g.Count());
     }
 
@@ -329,7 +336,8 @@ public class AppealService : IAppealService
         
         var appeals = await _appealRepository.GetAppealsByCouncilAsync(councilId);
         return appeals
-            .GroupBy(a => a.Problem.Status ?? "Unknown")
+            .Where(a => a.Problem != null)
+            .GroupBy(a => a.Problem!.Status ?? "Unknown")
             .ToDictionary(g => g.Key, g => g.Count());
     }
 
@@ -340,7 +348,7 @@ public class AppealService : IAppealService
         
         var appeals = _appealRepository.GetAll();
         var resolvedAppeals = appeals
-            .Where(a => a.Problem.Status == "Resolved" && a.CreatedAt.HasValue && a.UpdatedAt.HasValue)
+            .Where(a => a.Problem != null && a.Problem.Status == "Resolved" && a.CreatedAt.HasValue && a.UpdatedAt.HasValue)
             .ToList();
 
         if (!resolvedAppeals.Any())
@@ -371,8 +379,8 @@ public class AppealService : IAppealService
         {
             Date = DateTime.UtcNow,
             CreatedCount = recentAppeals.Count,
-            ResolvedCount = recentAppeals.Count(a => a.Problem.Status == "Resolved"),
-            PendingCount = recentAppeals.Count(a => a.Problem.Status == "Pending")
+            ResolvedCount = recentAppeals.Count(a => a.Problem != null && a.Problem.Status == "Resolved"),
+            PendingCount = recentAppeals.Count(a => a.Problem != null && a.Problem.Status == "Pending")
         };
     }
 }
