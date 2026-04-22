@@ -977,4 +977,127 @@ public class AppealController : ControllerBase
             });
         }
     }
+
+    /// <summary>
+    /// Retrieves a summary of appeals for a specific city.
+    /// </summary>
+    /// <param name="city">The city name</param>
+    /// <returns>List of appeal summaries for the city</returns>
+    /// <response code="200">Appeals retrieved successfully</response>
+    /// <response code="400">Invalid city parameter</response>
+    /// <response code="500">Server error occurred</response>
+    [HttpGet("summary/city/{city}")]
+    [ProducesResponseType(typeof(IEnumerable<AppealSummaryResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetAppealSummariesByCity(string city)
+    {
+        if (string.IsNullOrWhiteSpace(city))
+        {
+            _logger.LogWarning("Invalid city parameter provided");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "City cannot be empty"
+            });
+        }
+
+        try
+        {
+            var appeals = await _appealService.GetAppealsByCityAsync(city);
+            var summaries = _mapper.Map<IEnumerable<AppealSummaryResponse>>(appeals);
+            return Ok(summaries);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error retrieving appeal summaries for city {city}");
+            return StatusCode(StatusCodes.Status500InternalServerError, new ErrorResponse
+            {
+                Success = false,
+                Message = "An error occurred while retrieving appeal summaries"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Retrieves a summary of appeals for a specific oblast.
+    /// </summary>
+    /// <param name="oblast">The oblast name</param>
+    /// <returns>List of appeal summaries for the oblast</returns>
+    /// <response code="200">Appeals retrieved successfully</response>
+    /// <response code="400">Invalid oblast parameter</response>
+    /// <response code="500">Server error occurred</response>
+    [HttpGet("summary/oblast/{oblast}")]
+    [ProducesResponseType(typeof(IEnumerable<AppealSummaryResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetAppealSummariesByOblast(string oblast)
+    {
+        if (string.IsNullOrWhiteSpace(oblast))
+        {
+            _logger.LogWarning("Invalid oblast parameter provided");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "Oblast cannot be empty"
+            });
+        }
+
+        try
+        {
+            var appeals = await _appealService.GetAppealsByOblastAsync(oblast);
+            var summaries = _mapper.Map<IEnumerable<AppealSummaryResponse>>(appeals);
+            return Ok(summaries);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error retrieving appeal summaries for oblast {oblast}");
+            return StatusCode(StatusCodes.Status500InternalServerError, new ErrorResponse
+            {
+                Success = false,
+                Message = "An error occurred while retrieving appeal summaries"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Retrieves a summary of appeals for a specific district.
+    /// </summary>
+    /// <param name="district">The district name</param>
+    /// <returns>List of appeal summaries for the district</returns>
+    /// <response code="200">Appeals retrieved successfully</response>
+    /// <response code="400">Invalid district parameter</response>
+    /// <response code="500">Server error occurred</response>
+    [HttpGet("summary/district/{district}")]
+    [ProducesResponseType(typeof(IEnumerable<AppealSummaryResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetAppealSummariesByDistrict(string district)
+    {
+        if (string.IsNullOrWhiteSpace(district))
+        {
+            _logger.LogWarning("Invalid district parameter provided");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "District cannot be empty"
+            });
+        }
+
+        try
+        {
+            var appeals = await _appealService.GetAppealsByDistrictAsync(district);
+            var summaries = _mapper.Map<IEnumerable<AppealSummaryResponse>>(appeals);
+            return Ok(summaries);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error retrieving appeal summaries for district {district}");
+            return StatusCode(StatusCodes.Status500InternalServerError, new ErrorResponse
+            {
+                Success = false,
+                Message = "An error occurred while retrieving appeal summaries"
+            });
+        }
+    }
 }

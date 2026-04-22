@@ -66,26 +66,110 @@ class AppealService {
   }
 
   /**
-   * Fetch appeal summary by ID
-   * @param {string} appealId - The appeal ID
-   * @returns {Promise<{success: boolean, appeal: Object, errors: string[]}>}
+   * Fetch appeal summary by type and name
+   * @param {string} type - Type of summary: 'city', 'oblast', or 'district'
+   * @param {string} name - Name of the city, oblast, or district
+   * @returns {Promise<{success: boolean, summary: Object, errors: string[]}>}
    */
-  static async getAppealSummary(appealId) {
+  static async getAppealSummaryByType(type, name) {
     try {
-      console.log('📋 Fetching appeal summary for ID:', appealId);
-      const appeal = await ApiService.get(`/api/Appeal/${encodeURIComponent(appealId)}/summary`);
-      console.log('✅ Appeal summary received:', appeal);
+      console.log(`📊 Fetching appeal summary for ${type}:`, name);
+      const response = await ApiService.get(`/api/Appeal/summary/${encodeURIComponent(type)}/${encodeURIComponent(name)}`);
+      console.log('✅ Appeal summary received:', response);
+
+      // Check if response is an array (direct appeals list) or an object with stats
+      let appeals = [];
+      let stats = {
+        total: 0,
+        pending: 0,
+        inProgress: 0,
+        resolved: 0
+      };
+
+      if (Array.isArray(response)) {
+        // Backend returns appeals array directly
+        appeals = response;
+
+        // Calculate stats from appeals
+        stats.total = appeals.length;
+        stats.pending = appeals.filter(a => (a.Status || a.status || '').toUpperCase() === 'PENDING').length;
+        stats.inProgress = appeals.filter(a => (a.Status || a.status || '').toUpperCase() === 'INPROGRESS' || (a.Status || a.status || '').toUpperCase() === 'IN PROGRESS').length;
+        stats.resolved = appeals.filter(a => (a.Status || a.status || '').toUpperCase() === 'RESOLVED').length;
+      } else {
+        // Backend returns an object with stats and appeals
+        stats = {
+          total: response.Total || response.total || 0,
+          pending: response.Pending || response.pending || 0,
+          inProgress: response.InProgress || response.inProgress || 0,
+          resolved: response.Resolved || response.resolved || 0
+        };
+        appeals = response.Appeals || response.appeals || [];
+      }
+
+      const transformed = {
+        total: stats.total,
+        pending: stats.pending,
+        inProgress: stats.inProgress,
+        resolved: stats.resolved,
+        appeals: appeals
+      };
+
       return {
         success: true,
-        appeal: appeal || {},
+        summary: transformed,
         errors: []
       };
     } catch (error) {
-      console.error(`❌ Failed to fetch appeal summary for ${appealId}:`, error);
+      console.error(`❌ Failed to fetch appeal summary for ${type} "${name}":`, error);
       return {
         success: false,
-        appeal: {},
-        errors: [error.message || `Failed to fetch appeal summary for ${appealId}`]
+        summary: {
+          total: 0,
+          pending: 0,
+          inProgress: 0,
+          resolved: 0,
+          appeals: []
+        },
+        errors: [error.message || `Failed to fetch appeal summary for ${type} "${name}"`]
+      };
+    }
+  }
+
+  // ...existing code...
+
+  /**
+   * Fetch recent appeals for the dashboard
+   * @param {number} limit - Maximum number of appeals to return (default 5)
+   * @returns {Promise<{success: boolean, appeals: Array, errors: string[]}>}
+   */
+  static async getRecentAppeals(limit = 5) {
+    try {
+      console.log('📋 Fetching recent appeals, limit:', limit);
+      const appeals = await ApiService.get(`/api/Appeal/recent?limit=${limit}`);
+      const transformedAppeals = (appeals || []).map(appeal => ({
+        ...appeal,
+        id: appeal.AppealId || appeal.appealId,
+        title: appeal.ProblemName || appeal.problemName || 'Issue',
+        issue: appeal.Description || appeal.description || '',
+        status: appeal.Status || appeal.status || 'Pending',
+        date: appeal.DatePublished ? new Date(appeal.DatePublished).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        }) : new Date().toLocaleDateString()
+      }));
+      console.log('✅ Recent appeals received:', transformedAppeals);
+      return {
+        success: true,
+        appeals: transformedAppeals,
+        errors: []
+      };
+    } catch (error) {
+      console.error('❌ Failed to fetch recent appeals:', error);
+      return {
+        success: false,
+        appeals: [],
+        errors: [error.message || 'Failed to fetch recent appeals']
       };
     }
   }

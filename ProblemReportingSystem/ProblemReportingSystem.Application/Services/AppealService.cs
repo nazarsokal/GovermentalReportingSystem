@@ -68,6 +68,26 @@ public class AppealService : IAppealService
         return appealDtos;
     }
 
+    public async Task<IEnumerable<AppealDto>> GetAppealsByCityAsync(string city)
+    {
+        if (string.IsNullOrWhiteSpace(city))
+            throw new ArgumentException("City cannot be null or empty", nameof(city));
+
+        _logger.LogInformation($"Retrieving appeals for city: {city}");
+        var appeals = await _appealRepository.GetAppealsByCityAsync(city);
+        return _mapper.Map<IEnumerable<AppealDto>>(appeals);
+    }
+
+    public async Task<IEnumerable<AppealDto>> GetAppealsByOblastAsync(string oblast)
+    {
+        if (string.IsNullOrWhiteSpace(oblast))
+            throw new ArgumentException("Oblast cannot be null or empty", nameof(oblast));
+
+        _logger.LogInformation($"Retrieving appeals for oblast: {oblast}");
+        var appeals = await _appealRepository.GetAppealsByOblastAsync(oblast);
+        return _mapper.Map<IEnumerable<AppealDto>>(appeals);
+    }
+
     // Read - By Council
     public async Task<IEnumerable<AppealDto>> GetAppealsByCouncilAsync(Guid councilId)
     {
