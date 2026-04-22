@@ -10,6 +10,7 @@ public interface IAppealService
     // Read
     Task<AppealDto?> GetAppealByIdAsync(Guid appealId);
     Task<IEnumerable<AppealDto>> GetAllAppealsAsync();
+    Task<IEnumerable<AppealDto>> GetAppealsByDistrictAsync(string distinct);
     Task<IEnumerable<AppealDto>> GetCouncilAppealsByEmployeeAsync(Guid employeeId);
     Task<IEnumerable<AppealDto>> GetAppealsByCouncilAsync(Guid councilId);
     Task<IEnumerable<AppealDto>> GetAppealsByStatusAsync(Guid councilId, string status);

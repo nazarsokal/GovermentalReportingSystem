@@ -113,6 +113,15 @@ public class DtoMappingProfile : Profile
                     }).ToList()
                     : new List<CreateProblemPhotoDto>()
             }));
+        CreateMap<AppealDto, Appeal>()
+            .ForMember(dest => dest.AppealId, opt => opt.MapFrom(src => src.AppealId))
+            .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.UserId))
+            .ForMember(dest => dest.AssignedEmployeeId, opt => opt.MapFrom(src => src.AssignedEmployeeId))
+            .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt))
+            .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(src => src.UpdatedAt))
+            .ForMember(dest => dest.User, opt => opt.Ignore())
+            .ForMember(dest => dest.Problem, opt => opt.Ignore())
+            .ForMember(dest => dest.AssignedEmployee, opt => opt.Ignore());
         CreateMap<CreateAppealDto, Appeal>();
         CreateMap<UpdateAppealDto, Appeal>();
         CreateMap<Appeal, AppealDetailsDto>()

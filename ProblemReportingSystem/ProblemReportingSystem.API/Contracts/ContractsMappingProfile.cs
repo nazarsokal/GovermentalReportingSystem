@@ -64,5 +64,12 @@ public class ContractsMappingProfile : Profile
 
         // Problem Photo Response Mapping
         CreateMap<ProblemPhotoDto, ProblemPhotoResponse>();
+
+        // Appeal Response Mappings
+        CreateMap<AppealDto, SummaryAppealForMapResponse>()
+            .ForMember(dest => dest.AppealId, opt => opt.MapFrom(src => src.AppealId))
+            .ForMember(dest => dest.Latitude, opt => opt.MapFrom(src => src.ProblemDto.Latitude))
+            .ForMember(dest => dest.Longitude, opt => opt.MapFrom(src => src.ProblemDto.Longitude))
+            .ForMember(dest => dest.CategoryIconUrl, opt => opt.MapFrom(src => src.ProblemDto.CategoryId)); // Will be resolved from service
     }
 }

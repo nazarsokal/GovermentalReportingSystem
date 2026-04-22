@@ -17,12 +17,18 @@ namespace ProblemReportingSystem.API.Controllers;
 public class AppealController : ControllerBase
 {
     private readonly IAppealService _appealService;
+    private readonly IProblemCategoryService _categoryService;
     private readonly IMapper _mapper;
     private readonly ILogger<AppealController> _logger;
 
-    public AppealController(IAppealService appealService, IMapper mapper, ILogger<AppealController> logger)
+    public AppealController(
+        IAppealService appealService,
+        IProblemCategoryService categoryService,
+        IMapper mapper,
+        ILogger<AppealController> logger)
     {
         _appealService = appealService ?? throw new ArgumentNullException(nameof(appealService));
+        _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -382,6 +388,78 @@ public class AppealController : ControllerBase
                 Message = "An error occurred while retrieving unassigned appeals"
             });
         }
+    }
+
+    /// <summary>
+    /// Retrieves all appeals formatted for map display.
+    /// Returns minimal information with coordinates for mapping purposes.
+    /// </summary>
+    /// <returns>List of appeals with map information</returns>
+    /// <response code="200">Appeals retrieved successfully</response>
+    /// <response code="500">Server error occurred</response>
+    [HttpGet("map/{district}")]
+    [ProducesResponseType(typeof(IEnumerable<SummaryAppealForMapResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetAppealsForMap(string district)
+    {
+        try
+        {
+            _logger.LogInformation("Retrieving appeals for map display");
+            var appeals = await _appealService.GetAppealsByDistrictAsync(district);
+            var mappedAppeals = _mapper.Map<IEnumerable<SummaryAppealForMapResponse>>(appeals).ToList();
+            
+            // Populate category icon URLs from database
+            foreach (var appeal in mappedAppeals)
+            {
+                // The CategoryIconUrl currently contains the CategoryId from the mapping
+                if (Guid.TryParse(appeal.CategoryIconUrl, out var categoryId))
+                {
+                    try
+                    {
+                        var category = await _categoryService.GetCategoryByIdAsync(categoryId);
+                        appeal.CategoryIconUrl = category?.IconUrl ?? string.Empty;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning($"Failed to fetch category icon for {categoryId}: {ex.Message}");
+                        appeal.CategoryIconUrl = string.Empty;
+                    }
+                }
+            }
+            
+            return Ok(mappedAppeals);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving appeals for map");
+            return StatusCode(StatusCodes.Status500InternalServerError, new ErrorResponse
+            {
+                Success = false,
+                Message = "An error occurred while retrieving appeals for map display"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Helper method to get category icon URL.
+    /// In a real implementation, this should fetch from database through a service.
+    /// </summary>
+    private string GetCategoryIconUrl(Guid categoryId)
+    {
+        // This is a placeholder - ideally this should be injected as a service
+        // that queries the database for the actual icon URL
+        // For now, we'll use a mapping based on common problem categories
+        var categoryIconMap = new Dictionary<string, string>
+        {
+            { "pothole", "https://api.example.com/icons/pothole.png" },
+            { "street-light", "https://api.example.com/icons/street-light.png" },
+            { "trash", "https://api.example.com/icons/trash.png" },
+            { "sidewalk", "https://api.example.com/icons/sidewalk.png" },
+            { "water-leak", "https://api.example.com/icons/water-leak.png" },
+            { "default", "https://api.example.com/icons/default.png" }
+        };
+        
+        return categoryIconMap["default"];
     }
 
     // ===== UPDATE =====

@@ -9,6 +9,7 @@ public interface IAppealRepository : IProblemReportingSystemRepository<Appeal>
     Task<IEnumerable<Appeal>> GetAppealsByEmployeeAsync(Guid employeeId);
 
     Task<IEnumerable<Appeal>> GetAppealsByStatusAsync(Guid councilId, string status);
+    Task<IEnumerable<Appeal>> GetAppealsByDistrictAsync(string district);
 
     Task<Appeal?> GetAppealWithDetailsAsync(Guid appealId);
 

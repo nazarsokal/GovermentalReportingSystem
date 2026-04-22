@@ -49,6 +49,16 @@ public class AppealRepository : ProblemReportingSystemRepository<Appeal>, IAppea
             .ToListAsync();
     }
 
+    public async Task<IEnumerable<Appeal>> GetAppealsByDistrictAsync(string district)
+    {
+        var appeals = await _context.Appeals
+            .Include(a => a.Problem)
+            .ThenInclude(p => p.Address)
+            .Where(a => a.Problem.Address.District == district).ToListAsync();
+        
+        return appeals;
+    }
+
     public async Task<Appeal?> GetAppealWithDetailsAsync(Guid appealId)
     {
         return await _context.Appeals

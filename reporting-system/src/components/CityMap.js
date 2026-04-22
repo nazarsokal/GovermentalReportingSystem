@@ -1,6 +1,7 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { GoogleMap, Marker } from '@react-google-maps/api';
 import AddressService from '../services/AddressService';
+import AppealService from '../services/AppealService';
 import '../styles/CityMap.css';
 
 // Default Kyiv coordinates (fallback if API fails)
@@ -18,7 +19,42 @@ function CityMap({ user }) {
   const [districtCoordinates, setDistrictCoordinates] = useState({});
   const [coordinatesLoading, setCoordinatesLoading] = useState(true);
   const [coordinatesError, setCoordinatesError] = useState(null);
+  const [appeals, setAppeals] = useState([]);
+  const [appealsLoading, setAppealsLoading] = useState(false);
+  const [appealsError, setAppealsError] = useState(null);
+  const [mapCenter, setMapCenter] = useState(null); // Only set once on initial load
   const mapRef = useRef(null);
+  const appealsFetchedRef = useRef(false);
+  const fetchedDistrictsRef = useRef(new Set()); // Track which districts we've already fetched
+  const centerSetRef = useRef(false); // Track if center has been set
+
+  // Set the center only once on initial load
+  useEffect(() => {
+    if (centerSetRef.current || !districtCoordinates || Object.keys(districtCoordinates).length === 0) {
+      return;
+    }
+
+    console.log('🗺️ CityMap user object:', user);
+    console.log('🗺️ User district (from user.district):', user?.district);
+    console.log('🗺️ Available district coordinates:', districtCoordinates);
+
+    // Check localStorage as fallback
+    const storedDistrict = user?.district || localStorage.getItem('userDistrict');
+    console.log('🗺️ Final district to use:', storedDistrict);
+    console.log('🗺️ localStorage.userDistrict:', localStorage.getItem('userDistrict'));
+
+    let initialCenter = DEFAULT_COORDINATES;
+    if (storedDistrict && districtCoordinates[storedDistrict]) {
+      const coordinates = districtCoordinates[storedDistrict];
+      console.log('✅ Map centering on district:', storedDistrict, coordinates);
+      initialCenter = coordinates;
+    } else {
+      console.log('⚠️ Map defaulting to Kyiv (district not found)');
+    }
+
+    setMapCenter(initialCenter);
+    centerSetRef.current = true;
+  }, [districtCoordinates]);
 
   // Fetch all district coordinates on component mount
   useEffect(() => {
@@ -40,30 +76,125 @@ function CityMap({ user }) {
     fetchCoordinates();
   }, []);
 
-  // Get the center coordinates based on user's district
-  const center = useMemo(() => {
-    console.log('🗺️ CityMap user object:', user);
-    console.log('🗺️ User district (from user.district):', user?.district);
-    console.log('🗺️ Available district coordinates:', districtCoordinates);
+  // Helper function to check if a point is within map bounds
+  const isDistrictVisible = (districtCoord, bounds) => {
+    if (!bounds || !districtCoord) return false;
+    return bounds.contains(new window.google.maps.LatLng(districtCoord.lat, districtCoord.lng));
+  };
 
-    // Check localStorage as fallback
-    const storedDistrict = user?.district || localStorage.getItem('userDistrict');
-    console.log('🗺️ Final district to use:', storedDistrict);
-    console.log('🗺️ localStorage.userDistrict:', localStorage.getItem('userDistrict'));
-
-    if (storedDistrict && districtCoordinates[storedDistrict]) {
-      const coordinates = districtCoordinates[storedDistrict];
-      console.log('✅ Map centering on district:', storedDistrict, coordinates);
-      return coordinates;
+  // Helper function to get all visible districts in current map bounds
+  const getVisibleDistricts = () => {
+    if (!mapRef.current || !districtCoordinates || Object.keys(districtCoordinates).length === 0) {
+      return [];
     }
 
-    console.log('⚠️ Map defaulting to Kyiv (district not found)');
-    return DEFAULT_COORDINATES;
-  }, [user, districtCoordinates]);
+    const bounds = mapRef.current.getBounds();
+    if (!bounds) return [];
+
+    return Object.keys(districtCoordinates).filter(districtName =>
+      isDistrictVisible(districtCoordinates[districtName], bounds)
+    );
+  };
+
+  // Fetch appeals when map is loaded or moved
+  useEffect(() => {
+    if (!mapLoaded || Object.keys(districtCoordinates).length === 0) return;
+
+    const fetchAppealsForVisibleDistricts = async () => {
+      const visibleDistricts = getVisibleDistricts();
+
+      if (visibleDistricts.length === 0) {
+        console.log('No districts visible in current map view');
+        setAppeals([]);
+        return;
+      }
+
+      // Find new districts that we haven't fetched yet
+      const newDistricts = visibleDistricts.filter(
+        district => !fetchedDistrictsRef.current.has(district)
+      );
+
+      if (newDistricts.length === 0) {
+        console.log('All visible districts already fetched');
+        return;
+      }
+
+      console.log('Fetching appeals for new visible districts:', newDistricts);
+      setAppealsLoading(true);
+
+      // Add new districts to the fetched set
+      newDistricts.forEach(district => fetchedDistrictsRef.current.add(district));
+
+      // Fetch appeals from all visible districts (including previously fetched ones)
+      const result = await AppealService.getAppealLocationsFromMultipleDistricts(visibleDistricts);
+
+       if (result.success) {
+         console.log('✅ Appeals loaded for districts:', visibleDistricts);
+         console.log('📍 Total appeals received:', result.appeals.length);
+         result.appeals.forEach((appeal, index) => {
+           console.log(`   [${index}] ID: ${appeal.appealId}, Lat: ${appeal.latitude}, Lng: ${appeal.longitude}, Icon: ${appeal.categoryIconUrl}`);
+         });
+         setAppeals(result.appeals);
+         setAppealsError(null);
+       } else {
+         console.warn('❌ Failed to fetch appeals:', result.errors);
+         setAppealsError(result.errors?.[0] || 'Failed to load appeals');
+       }
+       setAppealsLoading(false);
+    };
+
+    // Only fetch if this is the initial load
+    if (!appealsFetchedRef.current) {
+      fetchAppealsForVisibleDistricts();
+      appealsFetchedRef.current = true;
+    }
+  }, [mapLoaded, districtCoordinates]);
+
+  // Handle map movements (drag, zoom) to refetch appeals for newly visible districts
+  const handleMapMove = () => {
+    if (!mapRef.current || !districtCoordinates || Object.keys(districtCoordinates).length === 0) return;
+
+    const visibleDistricts = getVisibleDistricts();
+    const newDistricts = visibleDistricts.filter(
+      district => !fetchedDistrictsRef.current.has(district)
+    );
+
+    if (newDistricts.length > 0) {
+      console.log('Map moved, fetching appeals for new districts:', newDistricts);
+
+      const fetchNewAppeals = async () => {
+        setAppealsLoading(true);
+
+        // Add new districts to the fetched set
+        newDistricts.forEach(district => fetchedDistrictsRef.current.add(district));
+
+        // Fetch appeals from all visible districts
+        const result = await AppealService.getAppealLocationsFromMultipleDistricts(visibleDistricts);
+
+         if (result.success) {
+           console.log('✅ Appeals updated with new districts:', newDistricts);
+           console.log('📍 Total appeals after update:', result.appeals.length);
+           result.appeals.forEach((appeal, index) => {
+             console.log(`   [${index}] ID: ${appeal.appealId}, Lat: ${appeal.latitude}, Lng: ${appeal.longitude}, Icon: ${appeal.categoryIconUrl}`);
+           });
+           setAppeals(result.appeals);
+           setAppealsError(null);
+         } else {
+           console.warn('❌ Failed to fetch appeals for new districts:', result.errors);
+           setAppealsError(result.errors?.[0] || 'Failed to load appeals');
+         }
+         setAppealsLoading(false);
+      };
+
+      fetchNewAppeals();
+    }
+  };
+
+
 
   const mapOptions = {
     zoom: 12,
-    center: center,
+    center: mapCenter || DEFAULT_COORDINATES,
     mapTypeId: 'roadmap',
     fullscreenControl: true,
     zoomControl: true,
@@ -161,26 +292,55 @@ function CityMap({ user }) {
         </div>
       )}
 
-      {!mapError && !coordinatesLoading && (
-        <>
-          <GoogleMap
-            mapContainerStyle={containerStyle}
-            center={center}
-            zoom={12}
-            options={mapOptions}
-            onLoad={handleMapLoad}
-            onError={handleMapError}
-          >
-            {/* Marker for user's district */}
-            {(user?.district || localStorage.getItem('userDistrict')) && (
-              <Marker
-                position={center}
-                title={user?.district || localStorage.getItem('userDistrict')}
-              />
-            )}
-          </GoogleMap>
+       {!mapError && !coordinatesLoading && (
+         <>
+            <GoogleMap
+              mapContainerStyle={containerStyle}
+              center={mapCenter || DEFAULT_COORDINATES}
+              zoom={12}
+              options={mapOptions}
+              onLoad={handleMapLoad}
+              onError={handleMapError}
+              onDragEnd={handleMapMove}
+              onZoomChanged={handleMapMove}
+             >
 
-          {!mapLoaded && (
+               {/* Custom markers for appeals with icons */}
+               {console.log('🎯 Rendering markers. Total appeals:', appeals.length)}
+               {appeals.map((appeal) => {
+                 // Construct absolute icon URL
+                 let iconUrl = appeal.categoryIconUrl;
+                 console.log(`   🔍 Original icon URL:`, iconUrl);
+
+                 // Convert relative path to absolute URL if needed
+                 if (iconUrl && !iconUrl.startsWith('http')) {
+                   // Remove leading slash if present
+                   const cleanPath = iconUrl.startsWith('/') ? iconUrl.slice(1) : iconUrl;
+                   iconUrl = `${process.env.PUBLIC_URL || ''}/${cleanPath}`;
+                 }
+                 console.log(`   ✅ Final icon URL:`, iconUrl);
+                 console.log(`   📍 Position: Lat=${appeal.latitude}, Lng=${appeal.longitude}`);
+
+                 return (
+                 <Marker
+                   key={appeal.appealId}
+                   position={{
+                     lat: parseFloat(appeal.latitude),
+                     lng: parseFloat(appeal.longitude)
+                   }}
+                   title={appeal.appealId}
+                   icon={{
+                     url: iconUrl,
+                     scaledSize: new window.google.maps.Size(32, 32),
+                     origin: new window.google.maps.Point(0, 0),
+                     anchor: new window.google.maps.Point(16, 32)
+                   }}
+                 />
+                 );
+               })}
+            </GoogleMap>
+
+           {!mapLoaded && (
             <div className="map-loading-overlay">
               <div className="loading-spinner"></div>
               <p>Loading map...</p>

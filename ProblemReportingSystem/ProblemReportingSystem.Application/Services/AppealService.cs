@@ -61,6 +61,13 @@ public class AppealService : IAppealService
         return _mapper.Map<IEnumerable<AppealDto>>(appeals);
     }
 
+    public async Task<IEnumerable<AppealDto>> GetAppealsByDistrictAsync(string distinct)
+    {
+        var appeals = await _appealRepository.GetAppealsByDistrictAsync(distinct);
+        var appealDtos = _mapper.Map<IEnumerable<AppealDto>>(appeals);
+        return appealDtos;
+    }
+
     // Read - By Council
     public async Task<IEnumerable<AppealDto>> GetAppealsByCouncilAsync(Guid councilId)
     {

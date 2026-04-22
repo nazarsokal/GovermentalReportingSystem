@@ -103,6 +103,7 @@ builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IGeolocateService, GeolocateService>();
 builder.Services.AddScoped<IProblemService, ProblemService>();
 builder.Services.AddScoped<IAppealService, AppealService>();
+builder.Services.AddScoped<IProblemCategoryService, ProblemCategoryService>();
 builder.Services.AddScoped<IPollService, PollService>();
 builder.Services.AddScoped<ICouncilEmployeeService, CouncilEmployeeService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
@@ -115,6 +116,7 @@ builder.Services.AddScoped(typeof(IProblemReportingSystemRepository<>),
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IProblemRepository, ProblemRepository>();
 builder.Services.AddScoped<IAppealRepository, AppealRepository>();
+builder.Services.AddScoped<IProblemCategoryRepository, ProblemCategoryRepository>();
 builder.Services.AddScoped<IPollRepository, PollRepository>();
 builder.Services.AddScoped<ICouncilEmployeeRepository, CouncilEmployeeRepository>();
 builder.Services.AddScoped<ICityCouncilRepository, CityCouncilRepository>();
