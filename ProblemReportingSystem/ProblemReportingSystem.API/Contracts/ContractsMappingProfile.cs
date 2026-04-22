@@ -71,5 +71,13 @@ public class ContractsMappingProfile : Profile
             .ForMember(dest => dest.Latitude, opt => opt.MapFrom(src => src.ProblemDto.Latitude))
             .ForMember(dest => dest.Longitude, opt => opt.MapFrom(src => src.ProblemDto.Longitude))
             .ForMember(dest => dest.CategoryIconUrl, opt => opt.MapFrom(src => src.ProblemDto.CategoryId)); // Will be resolved from service
+
+        // Appeal Summary Response Mapping
+        CreateMap<AppealDto, AppealSummaryResponse>()
+            .ForMember(dest => dest.AppealId, opt => opt.MapFrom(src => src.AppealId))
+            .ForMember(dest => dest.DatePublished, opt => opt.MapFrom(src => src.CreatedAt))
+            .ForMember(dest => dest.ProblemName, opt => opt.MapFrom(src => src.ProblemDto.Title))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => "Pending"))
+            .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.ProblemDto.Description));
     }
 }

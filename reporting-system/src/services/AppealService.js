@@ -54,7 +54,6 @@ class AppealService {
    * @returns {Object} - The appeal object with camelCase properties
    */
   static transformAppealToCamelCase(appeal) {
-    console.log('🔄 Transforming appeal:', appeal);
     const transformed = {
       appealId: appeal.AppealId || appeal.appealId,
       categoryIconUrl: appeal.CategoryIconUrl || appeal.categoryIconUrl,
@@ -63,15 +62,35 @@ class AppealService {
       // Preserve any additional properties
       ...appeal
     };
-    console.log('✅ Transformed appeal:', transformed);
     return transformed;
   }
 
   /**
-   * Fetch appeals from multiple districts
-   * @param {string[]} districts - Array of district names/IDs
-   * @returns {Promise<{success: boolean, appeals: Array, errors: string[]}>}
+   * Fetch appeal summary by ID
+   * @param {string} appealId - The appeal ID
+   * @returns {Promise<{success: boolean, appeal: Object, errors: string[]}>}
    */
+  static async getAppealSummary(appealId) {
+    try {
+      console.log('📋 Fetching appeal summary for ID:', appealId);
+      const appeal = await ApiService.get(`/api/Appeal/${encodeURIComponent(appealId)}/summary`);
+      console.log('✅ Appeal summary received:', appeal);
+      return {
+        success: true,
+        appeal: appeal || {},
+        errors: []
+      };
+    } catch (error) {
+      console.error(`❌ Failed to fetch appeal summary for ${appealId}:`, error);
+      return {
+        success: false,
+        appeal: {},
+        errors: [error.message || `Failed to fetch appeal summary for ${appealId}`]
+      };
+    }
+  }
+
+  // ...existing code...
   static async getAppealLocationsFromMultipleDistricts(districts) {
     try {
       console.log('📍 getAppealLocationsFromMultipleDistricts called with districts:', districts);

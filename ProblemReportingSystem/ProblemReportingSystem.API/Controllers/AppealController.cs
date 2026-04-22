@@ -924,4 +924,57 @@ public class AppealController : ControllerBase
             });
         }
     }
+
+    /// <summary>
+    /// Retrieves a summary of an appeal with essential information.
+    /// </summary>
+    /// <param name="id">The appeal ID</param>
+    /// <returns>Appeal summary with Id, DatePublished, ProblemName, Status, and Description</returns>
+    /// <response code="200">Appeal summary retrieved successfully</response>
+    /// <response code="400">Invalid appeal ID</response>
+    /// <response code="404">Appeal not found</response>
+    /// <response code="500">Server error occurred</response>
+    [HttpGet("{id}/summary")]
+    [ProducesResponseType(typeof(AppealSummaryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetAppealSummary(Guid id)
+    {
+        if (id == Guid.Empty)
+        {
+            _logger.LogWarning("Invalid appeal ID provided");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "Invalid appeal ID"
+            });
+        }
+
+        try
+        {
+            var appeal = await _appealService.GetAppealByIdAsync(id);
+            if (appeal == null)
+            {
+                _logger.LogWarning($"Appeal with ID {id} not found");
+                return NotFound(new ErrorResponse
+                {
+                    Success = false,
+                    Message = "Appeal not found"
+                });
+            }
+
+            var summary = _mapper.Map<AppealSummaryResponse>(appeal);
+            return Ok(summary);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error retrieving appeal summary for {id}");
+            return StatusCode(StatusCodes.Status500InternalServerError, new ErrorResponse
+            {
+                Success = false,
+                Message = "An error occurred while retrieving the appeal summary"
+            });
+        }
+    }
 }
