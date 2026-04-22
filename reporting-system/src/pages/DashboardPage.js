@@ -50,7 +50,7 @@ function DashboardPage({ user, onLogout }) {
             <div className="main-content">
               <div className="map-section">
                 <h2>City Infrastructure Map</h2>
-                <CityMap />
+                <CityMap user={user} />
               </div>
 
               <div className="recent-section">

@@ -1,28 +1,133 @@
 .city-map-container {
   width: 100%;
-  height: 350px;
+  height: 100%;
+  min-height: 350px;
   background: white;
   border-radius: 8px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   border: 1px solid #e5e7eb;
+  position: relative;
+  flex: 1;
 }
 
-.city-map-svg {
+.city-map-container > div:not(.map-error):not(.map-loading-overlay) {
   width: 100%;
   height: 100%;
-  display: block;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
-.map-credits {
-  font-size: 11px;
-  color: #9ca3af;
-  padding: 8px 12px;
-  background-color: #f9fafb;
-  margin: 0;
-  border-top: 1px solid #e5e7eb;
+.city-map-container > div:first-child {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
 }
+
+.gm-root,
+.gm-style {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.gm-maps-container {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 8px;
+}
+
+.map-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.9);
+  gap: 16px;
+  border-radius: 8px;
+  z-index: 10;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.map-loading-overlay p {
+  color: #6b7280;
+  font-size: 14px;
+  margin: 0;
+}
+
+.map-error {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  padding: 20px;
+  box-sizing: border-box;
+  border-radius: 8px;
+}
+
+.error-content {
+  text-align: center;
+  max-width: 400px;
+}
+
+.error-content p {
+  color: #374151;
+  font-size: 14px;
+  margin: 8px 0;
+  line-height: 1.5;
+}
+
+.error-content p strong {
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.error-content code {
+  display: inline-block;
+  background: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 12px;
+  color: #d97706;
+  border: 1px solid #fcd34d;
+  margin: 0 4px;
+}
+
+.error-content a {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.error-content a:hover {
+  text-decoration: underline;
+}
+
 
 @media (max-width: 768px) {
   .city-map-container {

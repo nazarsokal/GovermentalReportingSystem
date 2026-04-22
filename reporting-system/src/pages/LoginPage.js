@@ -74,7 +74,11 @@ function LoginPage({ onLogin }) {
       return;
     }
 
+    console.log('🔐 Logging in with:', email);
     const result = await AuthService.login(email, password, rememberMe);
+    console.log('🔐 Login result:', result);
+    console.log('🔐 User returned from login:', result.user);
+    console.log('🔐 localStorage.userDistrict after login:', localStorage.getItem('userDistrict'));
 
     if (result.success) {
       setSuccess('Login successful!');

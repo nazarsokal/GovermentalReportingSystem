@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ProblemReportingSystem.Application.DTOs;
 using ProblemReportingSystem.Application.ServiceAbstractions;
 using ProblemReportingSystem.DAL.RepositoryAbstractions;
 
@@ -68,5 +69,31 @@ public class AddressService : IAddressService
             throw;
         }
     }
-}
 
+    /// <summary>
+    /// Get all unique districts with their coordinates
+    /// Prioritizes coordinates from addresses where city councils are located
+    /// </summary>
+    public async Task<List<DistrictCoordinatesDto>> GetDistrictsWithCoordinatesAsync()
+    {
+        try
+        {
+            _logger.LogInformation("Retrieving districts with coordinates from database");
+            var districtCoordinates = await _addressRepository.GetDistrictsWithCoordinatesAsync();
+            
+            return districtCoordinates
+                .Select(dc => new DistrictCoordinatesDto
+                {
+                    District = dc.District,
+                    Latitude = dc.Latitude,
+                    Longitude = dc.Longitude
+                })
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error retrieving districts with coordinates: {ex.Message}");
+            throw;
+        }
+    }
+}

@@ -209,6 +209,11 @@ public class AuthenticationResponseDto
     public UserDto? User { get; set; }
 
     /// <summary>
+    /// User's address information (returned on successful login/registration)
+    /// </summary>
+    public AddressDto? Address { get; set; }
+
+    /// <summary>
     /// Error message if authentication/registration failed
     /// </summary>
     public string? Message { get; set; }

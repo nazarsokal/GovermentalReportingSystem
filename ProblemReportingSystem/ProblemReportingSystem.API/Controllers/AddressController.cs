@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using ProblemReportingSystem.Application.DTOs;
 using ProblemReportingSystem.Application.ServiceAbstractions;
 
 namespace ProblemReportingSystem.API.Controllers;
@@ -123,5 +124,35 @@ public class AddressController : ControllerBase
             });
         }
     }
-}
 
+    /// <summary>
+    /// GET /api/Address/districts/coordinates/all
+    /// Retrieves all unique districts with their coordinates.
+    /// Prioritizes coordinates from addresses where city councils are located.
+    /// </summary>
+    /// <returns>List of districts with their coordinates sorted alphabetically by district name</returns>
+    /// <response code="200">Successfully retrieved districts with coordinates</response>
+    /// <response code="500">Server error occurred</response>
+    [HttpGet("districts/coordinates/all")]
+    [ProducesResponseType(typeof(List<DistrictCoordinatesDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetDistrictsWithCoordinates()
+    {
+        try
+        {
+            _logger.LogInformation("Fetching all districts with coordinates");
+            var districtsWithCoordinates = await _addressService.GetDistrictsWithCoordinatesAsync();
+            return Ok(districtsWithCoordinates);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error retrieving districts with coordinates: {ex.Message}");
+            return StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                success = false,
+                message = "An error occurred while retrieving districts with coordinates",
+                error = ex.Message
+            });
+        }
+    }
+}

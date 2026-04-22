@@ -126,6 +126,130 @@ class AddressService {
       };
     }
   }
+
+  // Get coordinates for a specific district
+  static async getDistrictCoordinates(district) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/Address/districts/${encodeURIComponent(district)}/coordinates`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.error(`API Error: ${response.status} ${response.statusText}`);
+        return {
+          success: false,
+          errors: [`API Error: ${response.status} ${response.statusText}`],
+          coordinates: null,
+        };
+      }
+
+      const data = await response.json();
+      console.log('District coordinates response:', data);
+
+      // Handle direct coordinates object response
+      if (data && data.latitude !== undefined && data.longitude !== undefined) {
+        return {
+          success: true,
+          coordinates: {
+            lat: data.latitude,
+            lng: data.longitude,
+          },
+        };
+      }
+
+      // Handle object response with success flag
+      if (data.success && data.data) {
+        return {
+          success: true,
+          coordinates: {
+            lat: data.data.latitude || data.data.lat,
+            lng: data.data.longitude || data.data.lng,
+          },
+        };
+      } else {
+        return {
+          success: false,
+          errors: data.errors || ['Failed to fetch coordinates'],
+          coordinates: null,
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching district coordinates:', error);
+      return {
+        success: false,
+        errors: [error.message],
+        coordinates: null,
+      };
+    }
+  }
+
+  // Get all district coordinates at once (for caching)
+  static async getAllDistrictCoordinates() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/Address/districts/coordinates/all`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.error(`API Error: ${response.status} ${response.statusText}`);
+        return {
+          success: false,
+          errors: [`API Error: ${response.status} ${response.statusText}`],
+          coordinates: {},
+        };
+      }
+
+      const data = await response.json();
+      console.log('All district coordinates response:', data);
+
+      // Handle array response and convert to object
+      if (Array.isArray(data)) {
+        const coordinatesMap = {};
+        data.forEach((item) => {
+          if (item.district && item.latitude !== undefined && item.longitude !== undefined) {
+            coordinatesMap[item.district] = {
+              lat: item.latitude,
+              lng: item.longitude,
+            };
+          }
+        });
+        return {
+          success: true,
+          coordinates: coordinatesMap,
+        };
+      }
+
+      // Handle object response
+      if (data.success && data.data) {
+        return {
+          success: true,
+          coordinates: data.data,
+        };
+      } else {
+        return {
+          success: false,
+          errors: data.errors || ['Failed to fetch coordinates'],
+          coordinates: {},
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching all district coordinates:', error);
+      return {
+        success: false,
+        errors: [error.message],
+        coordinates: {},
+      };
+    }
+  }
 }
 
 export default AddressService;

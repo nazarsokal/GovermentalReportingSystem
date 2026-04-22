@@ -27,11 +27,42 @@ class AuthService {
         localStorage.setItem('refreshToken', data.refreshToken);
         localStorage.setItem('tokenType', data.tokenType);
         localStorage.setItem('expiresIn', data.expiresIn);
-        localStorage.setItem('user', JSON.stringify(data.user));
+
+        // Prepare user object
+        let user = data.user;
+
+        // Check if address data is in separate object (backend returning address separately)
+        if (data.address) {
+          console.log('Address data received during registration:', data.address);
+
+          // Add district and oblast to user object
+          if (data.address.district) {
+            user.district = data.address.district;
+            localStorage.setItem('userDistrict', data.address.district);
+            console.log('Stored district from address:', data.address.district);
+          }
+          if (data.address.oblast) {
+            user.oblast = data.address.oblast;
+            localStorage.setItem('userOblast', data.address.oblast);
+            console.log('Stored oblast from address:', data.address.oblast);
+          }
+        }
+
+        // Store district and oblast if provided in params
+        if (district) {
+          localStorage.setItem('userDistrict', district);
+          user.district = district;
+        }
+        if (oblast) {
+          localStorage.setItem('userOblast', oblast);
+          user.oblast = oblast;
+        }
+
+        localStorage.setItem('user', JSON.stringify(user));
 
         return {
           success: true,
-          user: data.user,
+          user: user,
           accessToken: data.accessToken,
           message: data.message,
         };
@@ -67,6 +98,7 @@ class AuthService {
       });
 
       const data = await response.json();
+      console.log('Login response:', data);
 
       if (data.success) {
         // Store tokens in localStorage
@@ -74,11 +106,43 @@ class AuthService {
         localStorage.setItem('refreshToken', data.refreshToken);
         localStorage.setItem('tokenType', data.tokenType);
         localStorage.setItem('expiresIn', data.expiresIn);
-        localStorage.setItem('user', JSON.stringify(data.user));
+
+        // Prepare user object and extract district/oblast
+        let user = data.user;
+
+        // Check if address data is in separate object (backend returning address separately)
+        if (data.address) {
+          console.log('Address data received:', data.address);
+
+          // Add district and oblast to user object
+          if (data.address.district) {
+            user.district = data.address.district;
+            localStorage.setItem('userDistrict', data.address.district);
+            console.log('✅ Stored district from address:', data.address.district);
+          }
+          if (data.address.oblast) {
+            user.oblast = data.address.oblast;
+            localStorage.setItem('userOblast', data.address.oblast);
+            console.log('✅ Stored oblast from address:', data.address.oblast);
+          }
+        }
+
+        // Also check if district/oblast are directly in user object
+        if (user && user.district) {
+          localStorage.setItem('userDistrict', user.district);
+          console.log('✅ Stored district from user object:', user.district);
+        }
+        if (user && user.oblast) {
+          localStorage.setItem('userOblast', user.oblast);
+          console.log('✅ Stored oblast from user object:', user.oblast);
+        }
+
+        localStorage.setItem('user', JSON.stringify(user));
+        console.log('✅ User stored with district:', user.district);
 
         return {
           success: true,
-          user: data.user,
+          user: user,
           accessToken: data.accessToken,
           message: data.message,
         };
@@ -105,6 +169,8 @@ class AuthService {
     localStorage.removeItem('tokenType');
     localStorage.removeItem('expiresIn');
     localStorage.removeItem('user');
+    localStorage.removeItem('userDistrict');
+    localStorage.removeItem('userOblast');
   }
 
   // Update user address
@@ -135,6 +201,10 @@ class AuthService {
           localStorage.setItem('user', JSON.stringify(user));
         }
 
+        // Also store district and oblast separately for persistence
+        localStorage.setItem('userDistrict', district);
+        localStorage.setItem('userOblast', oblast);
+
         return {
           success: true,
           user: data.user || user,
@@ -159,7 +229,21 @@ class AuthService {
   // Get stored user
   static getUser() {
     const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
+    const user = userStr ? JSON.parse(userStr) : null;
+
+    // If user doesn't have district but has saved it, restore it
+    if (user && !user.district) {
+      const savedDistrict = localStorage.getItem('userDistrict');
+      const savedOblast = localStorage.getItem('userOblast');
+      if (savedDistrict) {
+        user.district = savedDistrict;
+      }
+      if (savedOblast) {
+        user.oblast = savedOblast;
+      }
+    }
+
+    return user;
   }
 
   // Get access token

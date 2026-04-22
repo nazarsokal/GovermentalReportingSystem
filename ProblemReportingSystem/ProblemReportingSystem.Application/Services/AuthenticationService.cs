@@ -91,6 +91,7 @@ public class AuthenticationService : IAuthenticationService
             var refreshToken = GenerateRefreshToken();
 
             var userDto = _mapper.Map<UserDto>(createdUser);
+            var addressDto = createdUser.Address != null ? _mapper.Map<AddressDto>(createdUser.Address) : null;
 
             return new AuthenticationResponseDto
             {
@@ -100,6 +101,7 @@ public class AuthenticationService : IAuthenticationService
                 ExpiresIn = _jwtExpirationMinutes * 60,
                 TokenType = "Bearer",
                 User = userDto,
+                Address = addressDto,
                 Message = "Registration successful"
             };
         }
@@ -173,6 +175,7 @@ public class AuthenticationService : IAuthenticationService
             var refreshToken = GenerateRefreshToken();
 
             var userDto = _mapper.Map<UserDto>(user);
+            var addressDto = user.Address != null ? _mapper.Map<AddressDto>(user.Address) : null;
 
             return new AuthenticationResponseDto
             {
@@ -182,6 +185,7 @@ public class AuthenticationService : IAuthenticationService
                 ExpiresIn = _jwtExpirationMinutes * 60,
                 TokenType = "Bearer",
                 User = userDto,
+                Address = addressDto,
                 Message = "Login successful"
             };
         }
@@ -262,6 +266,7 @@ public class AuthenticationService : IAuthenticationService
             var refreshToken = GenerateRefreshToken();
 
             var userDto = _mapper.Map<UserDto>(user);
+            var addressDto = user.Address != null ? _mapper.Map<AddressDto>(user.Address) : null;
 
             return new AuthenticationResponseDto
             {
@@ -271,6 +276,7 @@ public class AuthenticationService : IAuthenticationService
                 ExpiresIn = _jwtExpirationMinutes * 60,
                 TokenType = "Bearer",
                 User = userDto,
+                Address = addressDto,
                 Message = "Google authentication successful"
             };
         }

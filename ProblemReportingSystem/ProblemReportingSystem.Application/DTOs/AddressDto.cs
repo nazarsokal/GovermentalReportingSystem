@@ -66,7 +66,11 @@ public class ParsedAddressDto
     public string FullAddress { get; set; } = string.Empty;
 }
 
-
-
-
-
+public class DistrictCoordinatesDto
+{
+    public string District { get; set; } = string.Empty;
+    
+    public decimal Latitude { get; set; }
+    
+    public decimal Longitude { get; set; }
+}

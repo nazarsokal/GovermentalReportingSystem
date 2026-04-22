@@ -25,4 +25,11 @@ public interface IAddressRepository : IProblemReportingSystemRepository<Address>
     /// <param name="oblast">The oblast name</param>
     /// <returns>List of district names in the oblast</returns>
     Task<List<string>> GetDistrictsByOblastAsync(string oblast);
+
+    /// <summary>
+    /// Get all unique districts with their coordinates
+    /// Prioritizes coordinates from addresses where city councils are located
+    /// </summary>
+    /// <returns>List of districts with coordinates</returns>
+    Task<List<(string District, decimal Latitude, decimal Longitude)>> GetDistrictsWithCoordinatesAsync();
 }

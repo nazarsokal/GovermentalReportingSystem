@@ -1,52 +1,211 @@
-import React from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
+import { GoogleMap, Marker } from '@react-google-maps/api';
+import AddressService from '../services/AddressService';
 import '../styles/CityMap.css';
 
-function CityMap() {
+// Default Kyiv coordinates (fallback if API fails)
+const DEFAULT_COORDINATES = { lat: 50.4501, lng: 30.5234 };
+
+const containerStyle = {
+  width: '100%',
+  height: '350px',
+  borderRadius: '8px',
+};
+
+function CityMap({ user }) {
+  const [mapError, setMapError] = useState(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [districtCoordinates, setDistrictCoordinates] = useState({});
+  const [coordinatesLoading, setCoordinatesLoading] = useState(true);
+  const [coordinatesError, setCoordinatesError] = useState(null);
+  const mapRef = useRef(null);
+
+  // Fetch all district coordinates on component mount
+  useEffect(() => {
+    const fetchCoordinates = async () => {
+      setCoordinatesLoading(true);
+      const result = await AddressService.getAllDistrictCoordinates();
+
+      if (result.success) {
+        console.log('District coordinates loaded:', result.coordinates);
+        setDistrictCoordinates(result.coordinates);
+        setCoordinatesError(null);
+      } else {
+        console.warn('Failed to fetch district coordinates, using defaults:', result.errors);
+        setCoordinatesError(result.errors?.[0] || 'Failed to load coordinates');
+      }
+      setCoordinatesLoading(false);
+    };
+
+    fetchCoordinates();
+  }, []);
+
+  // Get the center coordinates based on user's district
+  const center = useMemo(() => {
+    console.log('🗺️ CityMap user object:', user);
+    console.log('🗺️ User district (from user.district):', user?.district);
+    console.log('🗺️ Available district coordinates:', districtCoordinates);
+
+    // Check localStorage as fallback
+    const storedDistrict = user?.district || localStorage.getItem('userDistrict');
+    console.log('🗺️ Final district to use:', storedDistrict);
+    console.log('🗺️ localStorage.userDistrict:', localStorage.getItem('userDistrict'));
+
+    if (storedDistrict && districtCoordinates[storedDistrict]) {
+      const coordinates = districtCoordinates[storedDistrict];
+      console.log('✅ Map centering on district:', storedDistrict, coordinates);
+      return coordinates;
+    }
+
+    console.log('⚠️ Map defaulting to Kyiv (district not found)');
+    return DEFAULT_COORDINATES;
+  }, [user, districtCoordinates]);
+
+  const mapOptions = {
+    zoom: 12,
+    center: center,
+    mapTypeId: 'roadmap',
+    fullscreenControl: true,
+    zoomControl: true,
+    streetViewControl: false,
+    styles: [
+      {
+        featureType: 'administrative',
+        elementType: 'labels.text.fill',
+        stylers: [{ color: '#444444' }]
+      },
+      {
+        featureType: 'landscape',
+        elementType: 'all',
+        stylers: [{ color: '#f2f2f2' }]
+      },
+      {
+        featureType: 'poi',
+        elementType: 'all',
+        stylers: [{ visibility: 'off' }]
+      },
+      {
+        featureType: 'road',
+        elementType: 'all',
+        stylers: [{ saturation: -100 }, { lightness: 45 }]
+      },
+      {
+        featureType: 'road.highway',
+        elementType: 'all',
+        stylers: [{ visibility: 'simplified' }]
+      },
+      {
+        featureType: 'road.arterial',
+        elementType: 'labels.icon',
+        stylers: [{ visibility: 'off' }]
+      },
+      {
+        featureType: 'transit',
+        elementType: 'all',
+        stylers: [{ visibility: 'off' }]
+      },
+      {
+        featureType: 'water',
+        elementType: 'all',
+        stylers: [{ color: '#46bcda' }, { visibility: 'on' }]
+      }
+    ]
+  };
+
+  const handleMapLoad = (map) => {
+    console.log('Google Map loaded successfully');
+    mapRef.current = map;
+    setMapLoaded(true);
+    setMapError(null);
+  };
+
+  const handleMapError = (error) => {
+    console.error('Google Map Error:', error);
+    setMapError('Failed to load Google Maps. Please check your API key and browser console.');
+  };
+
+  const hasApiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY &&
+                    process.env.REACT_APP_GOOGLE_MAPS_API_KEY.trim() !== '';
+
+  if (!hasApiKey) {
+    return (
+      <div className="city-map-container">
+        <div className="map-error">
+          <div className="error-content">
+            <p><strong>Google Maps API key not configured</strong></p>
+            <p>Please add your Google Maps API key to the .env file:</p>
+            <p><code>REACT_APP_GOOGLE_MAPS_API_KEY=your_key_here</code></p>
+            <p style={{ fontSize: '12px', marginTop: '8px' }}>Get your key from: <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer">Google Cloud Console</a></p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="city-map-container">
-      <svg viewBox="0 0 800 400" className="city-map-svg">
-        {/* Background */}
-        <rect width="800" height="400" fill="#E8F4F8"/>
+      {mapError && (
+        <div className="map-error">
+          <div className="error-content">
+            <p><strong>Map Loading Error</strong></p>
+            <p>{mapError}</p>
+            <p style={{ fontSize: '12px', marginTop: '8px' }}>Check the browser console (F12) for more details</p>
+          </div>
+        </div>
+      )}
 
-        {/* Water features */}
-        <path d="M 200 100 Q 250 150 280 200 Q 300 250 320 300" stroke="#4A90E2" strokeWidth="20" fill="none"/>
-        <path d="M 500 50 Q 550 100 600 200" stroke="#4A90E2" strokeWidth="15" fill="none"/>
+      {coordinatesLoading && (
+        <div className="map-loading-overlay">
+          <div className="loading-spinner"></div>
+          <p>Loading map coordinates...</p>
+        </div>
+      )}
 
-        {/* Streets */}
-        <line x1="50" y1="150" x2="750" y2="150" stroke="#CCCCCC" strokeWidth="8"/>
-        <line x1="50" y1="250" x2="750" y2="250" stroke="#CCCCCC" strokeWidth="8"/>
-        <line x1="150" y1="0" x2="150" y2="400" stroke="#CCCCCC" strokeWidth="8"/>
-        <line x1="400" y1="0" x2="400" y2="400" stroke="#CCCCCC" strokeWidth="8"/>
-        <line x1="650" y1="0" x2="650" y2="400" stroke="#CCCCCC" strokeWidth="8"/>
+      {!mapError && !coordinatesLoading && (
+        <>
+          <GoogleMap
+            mapContainerStyle={containerStyle}
+            center={center}
+            zoom={12}
+            options={mapOptions}
+            onLoad={handleMapLoad}
+            onError={handleMapError}
+          >
+            {/* Marker for user's district */}
+            {(user?.district || localStorage.getItem('userDistrict')) && (
+              <Marker
+                position={center}
+                title={user?.district || localStorage.getItem('userDistrict')}
+              />
+            )}
+          </GoogleMap>
 
-        {/* Green areas */}
-        <circle cx="600" cy="80" r="40" fill="#7BC67B"/>
-        <circle cx="150" cy="350" r="50" fill="#7BC67B"/>
+          {!mapLoaded && (
+            <div className="map-loading-overlay">
+              <div className="loading-spinner"></div>
+              <p>Loading map...</p>
+            </div>
+          )}
+        </>
+      )}
 
-        {/* Building blocks */}
-        <rect x="80" y="60" width="40" height="40" fill="#F5F5F5" stroke="#999" strokeWidth="1"/>
-        <rect x="80" y="180" width="40" height="40" fill="#F5F5F5" stroke="#999" strokeWidth="1"/>
-        <rect x="80" y="300" width="40" height="40" fill="#F5F5F5" stroke="#999" strokeWidth="1"/>
-
-        <rect x="250" y="60" width="45" height="45" fill="#F5F5F5" stroke="#999" strokeWidth="1"/>
-        <rect x="250" y="180" width="45" height="45" fill="#F5F5F5" stroke="#999" strokeWidth="1"/>
-        <rect x="250" y="300" width="45" height="45" fill="#F5F5F5" stroke="#999" strokeWidth="1"/>
-
-        <rect x="500" y="280" width="50" height="50" fill="#F5F5F5" stroke="#999" strokeWidth="1"/>
-        <rect x="500" y="100" width="50" height="50" fill="#F5F5F5" stroke="#999" strokeWidth="1"/>
-
-        <rect x="700" y="60" width="35" height="35" fill="#F5F5F5" stroke="#999" strokeWidth="1"/>
-        <rect x="700" y="180" width="35" height="35" fill="#F5F5F5" stroke="#999" strokeWidth="1"/>
-        <rect x="700" y="300" width="35" height="35" fill="#F5F5F5" stroke="#999" strokeWidth="1"/>
-
-        {/* Infrastructure points (reported issues) */}
-        <circle cx="150" cy="150" r="12" fill="#4A90E2" opacity="0.9"/>
-        <circle cx="350" cy="250" r="12" fill="#4A90E2" opacity="0.9"/>
-        <circle cx="520" cy="180" r="12" fill="#4A90E2" opacity="0.9"/>
-        <circle cx="400" cy="100" r="12" fill="#4A90E2" opacity="0.9"/>
-        <circle cx="650" cy="280" r="12" fill="#4A90E2" opacity="0.9"/>
-      </svg>
-      <p className="map-credits">Map data © Powered by Maps API</p>
+      {coordinatesError && !coordinatesLoading && (
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          backgroundColor: '#fff3cd',
+          border: '1px solid #ffc107',
+          padding: '10px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          maxWidth: '200px',
+          zIndex: 10
+        }}>
+          <p><strong>⚠️ Using default coordinates</strong></p>
+          <p>{coordinatesError}</p>
+        </div>
+      )}
     </div>
   );
 }

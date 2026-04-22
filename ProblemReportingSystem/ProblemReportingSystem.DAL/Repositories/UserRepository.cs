@@ -26,6 +26,7 @@ public class UserRepository : ProblemReportingSystemRepository<User>, IUserRepos
             throw new ArgumentException("Email cannot be empty", nameof(email));
 
         return await _context.Users
+            .Include(u => u.Address)
             .Include(u => u.Admin)
             .Include(u => u.CouncilEmployee)
             .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
@@ -40,6 +41,7 @@ public class UserRepository : ProblemReportingSystemRepository<User>, IUserRepos
             throw new ArgumentException("Google Auth ID cannot be empty", nameof(googleAuthId));
 
         return await _context.Users
+            .Include(u => u.Address)
             .Include(u => u.Admin)
             .Include(u => u.CouncilEmployee)
             .FirstOrDefaultAsync(u => u.GoogleAuthId == googleAuthId, cancellationToken);
@@ -81,6 +83,7 @@ public class UserRepository : ProblemReportingSystemRepository<User>, IUserRepos
             throw new ArgumentException("User ID cannot be empty", nameof(excludeUserId));
 
         return await _context.Users
+            .Include(u => u.Address)
             .Include(u => u.Admin)
             .Include(u => u.CouncilEmployee)
             .FirstOrDefaultAsync(u => u.Email == email && u.UserId != excludeUserId, cancellationToken);
@@ -98,6 +101,7 @@ public class UserRepository : ProblemReportingSystemRepository<User>, IUserRepos
             throw new ArgumentException("User ID cannot be empty", nameof(excludeUserId));
 
         return await _context.Users
+            .Include(u => u.Address)
             .Include(u => u.Admin)
             .Include(u => u.CouncilEmployee)
             .FirstOrDefaultAsync(u => u.GoogleAuthId == googleAuthId && u.UserId != excludeUserId, cancellationToken);
