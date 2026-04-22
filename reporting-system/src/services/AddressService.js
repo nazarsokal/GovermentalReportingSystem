@@ -58,7 +58,7 @@ class AddressService {
   static async getDistricts(oblast) {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/Address/districts?oblast=${encodeURIComponent(oblast)}`,
+        `${API_BASE_URL}/api/Address/districts/${(oblast)}`,
         {
           method: 'GET',
           headers: {
