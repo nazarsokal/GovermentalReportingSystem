@@ -27,6 +27,16 @@ public class AddressRepository : ProblemReportingSystemRepository<Address>, IAdd
             .ToListAsync();
     }
 
+    public async Task<List<string>> GetAllCitiesAsync()
+    {
+        return await _context.Addresses
+            .Where(a => a.City != null && a.City != string.Empty)
+            .Select(a => a.City!)
+            .Distinct()
+            .OrderBy(o => o)
+            .ToListAsync();
+    }
+
     /// <summary>
     /// Get all unique districts from addresses
     /// </summary>
@@ -41,18 +51,27 @@ public class AddressRepository : ProblemReportingSystemRepository<Address>, IAdd
     }
 
     /// <summary>
-    /// Get all unique districts for a specific oblast
+    /// Get all unique districts for a specific city
     /// </summary>
-    public async Task<List<string>> GetDistrictsByOblastAsync(string oblast)
+    public async Task<List<string>> GetDistrictsByOblastAsync(string city)
     {
         return await _context.Addresses
-            .Where(a => a.Oblast == oblast && a.District != null && a.District != string.Empty)
+            .Where(a => a.Oblast == city && a.District != null && a.District != string.Empty)
             .Select(a => a.District!)
             .Distinct()
             .OrderBy(d => d)
             .ToListAsync();
     }
 
+    public async Task<List<string>> GetCitiesByOblastAsync(string oblast)
+    {
+        return await _context.Addresses
+            .Where(a => a.Oblast == oblast && a.City != null && a.City != string.Empty)
+            .Select(a => a.City!)
+            .Distinct()
+            .OrderBy(c => c)
+            .ToListAsync();
+    }
     /// <summary>
     /// Get all unique districts with their coordinates
     /// Prioritizes coordinates from addresses where city councils are located
@@ -100,4 +119,6 @@ public class AddressRepository : ProblemReportingSystemRepository<Address>, IAdd
             .Select(kvp => (kvp.Key, kvp.Value.Item1, kvp.Value.Item2))
             .ToList();
     }
+
+
 }

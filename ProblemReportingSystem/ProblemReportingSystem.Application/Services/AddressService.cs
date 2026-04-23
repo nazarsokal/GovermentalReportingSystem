@@ -34,6 +34,30 @@ public class AddressService : IAddressService
     }
 
     /// <summary>
+    /// Get all unique cities for a specific oblast
+    /// </summary>
+    public async Task<List<string>> GetCitiesByOblastAsync(string oblast)
+    {
+        var cities = await _addressRepository.GetCitiesByOblastAsync(oblast);
+        return cities;
+    }
+
+
+    public async Task<List<string>> GetAllCitiesAsync()
+    {
+        try
+        {
+            _logger.LogInformation("Retrieving all oblasts from database");
+            return await _addressRepository.GetAllCitiesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error retrieving oblasts: {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Get all unique districts from addresses in the database
     /// </summary>
     public async Task<List<string>> GetAllDistrictsAsync()

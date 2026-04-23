@@ -13,6 +13,14 @@ public interface IAddressService
     /// <returns>List of oblast names sorted alphabetically</returns>
     Task<List<string>> GetAllOblastsAsync();
 
+    public Task<List<string>> GetCitiesByOblastAsync(string oblast);
+    
+    /// <summary>
+    /// Get all unique cities from addresses in the database
+    /// </summary>
+    /// <returns>List of city names sorted alphabetically</returns>
+    Task<List<string>> GetAllCitiesAsync();
+
     /// <summary>
     /// Get all unique districts from addresses in the database
     /// </summary>

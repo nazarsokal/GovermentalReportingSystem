@@ -25,6 +25,8 @@ public class CreateUserDto
 
     public string? GoogleAuthId { get; set; }
 
+    public string? City { get; set; }
+
     public Guid? AddressId { get; set; }
 }
 
@@ -39,6 +41,8 @@ public class UpdateUserDto
     public string? Password { get; set; }
 
     public string? GoogleAuthId { get; set; }
+
+    public string? City { get; set; }
 
     public Guid? AddressId { get; set; }
 

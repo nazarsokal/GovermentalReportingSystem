@@ -14,10 +14,18 @@ public interface IAddressRepository : IProblemReportingSystemRepository<Address>
     Task<List<string>> GetAllOblastsAsync();
 
     /// <summary>
+    /// Get all unique oblasts from addresses
+    /// </summary>
+    /// <returns>List of oblast names</returns>
+    Task<List<string>> GetAllCitiesAsync();
+    
+    /// <summary>
     /// Get all unique districts from addresses
     /// </summary>
     /// <returns>List of district names</returns>
     Task<List<string>> GetAllDistrictsAsync();
+    
+    public Task<List<string>> GetCitiesByOblastAsync(string oblast);
 
     /// <summary>
     /// Get all unique districts for a specific oblast

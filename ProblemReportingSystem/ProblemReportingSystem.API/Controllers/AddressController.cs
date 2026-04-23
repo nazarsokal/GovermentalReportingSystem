@@ -52,6 +52,36 @@ public class AddressController : ControllerBase
             });
         }
     }
+    
+    /// <summary>
+    /// GET /api/Address/cities
+    /// Retrieves all unique cities from the database.
+    /// </summary>
+    /// <returns>List of cities names sorted alphabetically</returns>
+    /// <response code="200">Successfully retrieved oblasts</response>
+    /// <response code="500">Server error occurred</response>
+    [HttpGet("cities")]
+    [ProducesResponseType(typeof(List<string>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetCities()
+    {
+        try
+        {
+            _logger.LogInformation("Fetching all cities");
+            var oblasts = await _addressService.GetAllCitiesAsync();
+            return Ok(oblasts);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error retrieving oblasts: {ex.Message}");
+            return StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                success = false,
+                message = "An error occurred while retrieving oblasts",
+                error = ex.Message
+            });
+        }
+    }
 
     /// <summary>
     /// GET /api/Address/districts
@@ -96,7 +126,7 @@ public class AddressController : ControllerBase
     [ProducesResponseType(typeof(List<string>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> GetDistrictsByOblast(string oblast)
+    public async Task<IActionResult> GetDistrictsByCity(string oblast)
     {
         try
         {
@@ -116,6 +146,48 @@ public class AddressController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError($"Error retrieving districts for oblast {oblast}: {ex.Message}");
+            return StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                success = false,
+                message = "An error occurred while retrieving districts",
+                error = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// GET /api/Address/districts/{city}
+    /// Retrieves all unique districts for a specific city.
+    /// </summary>
+    /// <param name="oblast"></param>
+    /// <returns>List of district names in the city sorted alphabetically</returns>
+    /// <response code="200">Successfully retrieved districts for city</response>
+    /// <response code="400">Oblast parameter is invalid or empty</response>
+    /// <response code="500">Server error occurred</response>
+    [HttpGet("cities/{oblast}")]
+    [ProducesResponseType(typeof(List<string>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetCityByOblast(string oblast)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(oblast))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Oblast parameter is required"
+                });
+            }
+
+            _logger.LogInformation($"Fetching districts for city: {oblast}");
+            var districts = await _addressService.GetCitiesByOblastAsync(oblast);
+            return Ok(districts);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error retrieving districts for city {oblast}: {ex.Message}");
             return StatusCode(StatusCodes.Status500InternalServerError, new
             {
                 success = false,
