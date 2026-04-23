@@ -2,7 +2,7 @@ const API_BASE_URL = 'http://localhost:5216';
 
 class AuthService {
   // Register new user
-  static async register(fullName, email, password, confirmPassword, district = null, oblast = null) {
+  static async register(fullName, email, password, confirmPassword, city, district, oblast) {
     try {
       const response = await fetch(`${API_BASE_URL}/api/Auth/register`, {
         method: 'POST',
@@ -10,12 +10,13 @@ class AuthService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          fullName,
-          email,
-          password,
-          confirmPassword,
-          district,
-          oblast,
+          FullName: fullName,
+          Email: email,
+          Password: password,
+          ConfirmPassword: confirmPassword,
+          City: city,           // <-- Add this line
+          District: district,
+          Oblast: oblast
         }),
       });
 

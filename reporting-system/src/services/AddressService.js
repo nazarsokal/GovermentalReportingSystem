@@ -58,13 +58,13 @@ class AddressService {
   static async getDistricts(oblast) {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/Address/districts/${(oblast)}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
+          `${API_BASE_URL}/api/Address/districts/${(oblast)}`,
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
       );
 
       if (!response.ok) {
@@ -110,6 +110,62 @@ class AddressService {
     }
   }
 
+  // Get list of cities for a specific oblast
+  static async getCities(oblast) {
+    try {
+      const response = await fetch(
+          `${API_BASE_URL}/api/Address/cities/${(oblast)}`,
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+      );
+
+      if (!response.ok) {
+        console.error(`API Error: ${response.status} ${response.statusText}`);
+        return {
+          success: false,
+          errors: [`API Error: ${response.status} ${response.statusText}`],
+          cities: [],
+        };
+      }
+
+      const data = await response.json();
+      console.log('Cities response:', data);
+
+      // Handle plain array response
+      if (Array.isArray(data)) {
+        return {
+          success: true,
+          cities: data,
+        };
+      }
+
+      // Handle object response with success flag
+      if (data.success) {
+        return {
+          success: true,
+          cities: data.cities || data.data || [],
+        };
+      } else {
+        return {
+          success: false,
+          errors: data.errors || ['Failed to fetch cities'],
+          cities: [],
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+      return {
+        success: false,
+        errors: [error.message],
+        cities: [],
+      };
+    }
+  }
+
   // Get both oblasts and districts (can be used for initial data load)
   static async getAddressOptions() {
     try {
@@ -131,13 +187,13 @@ class AddressService {
   static async getDistrictCoordinates(district) {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/Address/districts/${encodeURIComponent(district)}/coordinates`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
+          `${API_BASE_URL}/api/Address/districts/${encodeURIComponent(district)}/coordinates`,
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
       );
 
       if (!response.ok) {
@@ -253,4 +309,3 @@ class AddressService {
 }
 
 export default AddressService;
-

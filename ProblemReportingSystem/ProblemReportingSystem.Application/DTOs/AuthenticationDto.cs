@@ -29,6 +29,8 @@ public class RegisterDto
     /// User's district
     /// </summary>
     public string? District { get; set; }
+    
+    public string? City { get; set; }
 
     /// <summary>
     /// User's oblast (region)

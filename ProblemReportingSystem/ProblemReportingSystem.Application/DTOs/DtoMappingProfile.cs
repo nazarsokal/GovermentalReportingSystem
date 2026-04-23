@@ -31,7 +31,7 @@ public class DtoMappingProfile : Profile
             .ForMember(dest => dest.Address, opt => opt.MapFrom(src => new Address
             {
                 AddressId = Guid.NewGuid(),
-                City = string.Empty,
+                City = src.City,
                 Street = string.Empty,
                 BuildingNumber = string.Empty,
                 District = src.District,
