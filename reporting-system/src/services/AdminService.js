@@ -1,65 +1,63 @@
 import ApiService from './ApiService';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5216';
+
 class AdminService {
-    /**
-     * Fetch all users for the admin dashboard
-     */
     static async getUsers() {
         try {
             const response = await ApiService.get('/api/Admin/users');
-
-            // FIX: Ensure we always return an array
             let usersArray = [];
             if (Array.isArray(response)) {
                 usersArray = response;
             } else if (response && typeof response === 'object') {
-                // Look for the array in common wrapper properties
-                usersArray = response.data || response.users || response.items ||
-                    Object.values(response).find(Array.isArray) || [];
+                usersArray = response.data || response.users || response.items || Object.values(response).find(Array.isArray) || [];
             }
-
-            return {
-                success: true,
-                users: usersArray
-            };
+            return { success: true, users: usersArray };
         } catch (error) {
-            console.error('Failed to fetch users:', error);
-            return {
-                success: false,
-                users: [],
-                errors: [error.message || 'Failed to fetch users']
-            };
+            return { success: false, users: [], errors: [error.message || 'Failed to fetch users'] };
         }
     }
 
-    /**
-     * Fetch all city councils for the admin dashboard
-     */
     static async getCityCouncils() {
         try {
             const response = await ApiService.get('/api/Admin/city-councils');
-
-            // FIX: Ensure we always return an array
             let councilsArray = [];
             if (Array.isArray(response)) {
                 councilsArray = response;
             } else if (response && typeof response === 'object') {
-                // Look for the array in common wrapper properties
-                councilsArray = response.data || response.councils || response.items ||
-                    Object.values(response).find(Array.isArray) || [];
+                councilsArray = response.data || response.councils || response.items || Object.values(response).find(Array.isArray) || [];
             }
-
-            return {
-                success: true,
-                councils: councilsArray
-            };
+            return { success: true, councils: councilsArray };
         } catch (error) {
-            console.error('Failed to fetch city councils:', error);
-            return {
-                success: false,
-                councils: [],
-                errors: [error.message || 'Failed to fetch city councils']
-            };
+            return { success: false, councils: [], errors: [error.message || 'Failed to fetch city councils'] };
+        }
+    }
+
+    /**
+     * Create a new city council
+     * POST /api/Admin/city-councils
+     */
+    static async createCityCouncil(councilData) {
+        try {
+            const token = localStorage.getItem('accessToken');
+            const response = await fetch(`${API_BASE_URL}/api/Admin/city-councils`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(councilData)
+            });
+
+            if (response.ok) {
+                return { success: true };
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                return { success: false, errors: errorData.errors || [errorData.message || 'Failed to create city council.'] };
+            }
+        } catch (error) {
+            console.error('Failed to create city council:', error);
+            return { success: false, errors: [error.message] };
         }
     }
 }

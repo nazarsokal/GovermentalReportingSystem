@@ -1,282 +1,354 @@
 import React, { useState, useEffect } from 'react';
+import { Autocomplete, useJsApiLoader, GoogleMap, Marker } from '@react-google-maps/api';
 import '../styles/AdminDashboard.css';
 import AdminService from '../services/AdminService';
+
+// Налаштування для карти
+const libraries = ['places'];
+const mapContainerStyle = {
+    width: '100%',
+    height: '250px',
+    borderRadius: '8px',
+    marginTop: '10px'
+};
+
+// Початковий центр
+const defaultCenter = {
+    lat: 50.4501,
+    lng: 30.5234
+};
 
 function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('users');
 
-    // State for dynamic data
+    // Дані з бекенду
     const [users, setUsers] = useState([]);
     const [councils, setCouncils] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // Fetch data based on the active tab
-    useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            setError(null);
+    // Стан модального вікна
+    const [showModal, setShowModal] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [formError, setFormError] = useState('');
 
-            if (activeTab === 'users') {
-                const result = await AdminService.getUsers();
-                if (result.success) {
-                    setUsers(result.users);
-                } else {
-                    setError(result.errors?.[0] || 'Failed to load users');
-                }
-            } else if (activeTab === 'councils') {
-                const result = await AdminService.getCityCouncils();
-                if (result.success) {
-                    setCouncils(result.councils);
-                } else {
-                    setError(result.errors?.[0] || 'Failed to load city councils');
-                }
+    // Пошук голови ради (Head User)
+    const [emailSearch, setEmailSearch] = useState('');
+    const [suggestions, setSuggestions] = useState([]);
+
+    // Стан Google Maps
+    const [autocomplete, setAutocomplete] = useState(null);
+    const [mapCenter, setMapCenter] = useState(defaultCenter);
+    const [markerPos, setMarkerPos] = useState(null);
+
+    // Ініціалізація карти
+    const { isLoaded } = useJsApiLoader({
+        googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
+        libraries,
+        language: 'uk',
+        region: 'UA'
+    });
+
+    // Стан форми (лише основні дані та координати)
+    const [formData, setFormData] = useState({
+        name: '', contactEmail: '', headUserId: '',
+        latitude: 0, longitude: 0
+    });
+
+    const fetchData = async () => {
+        setLoading(true);
+        setError(null);
+
+        const userResult = await AdminService.getUsers();
+        if (userResult.success) setUsers(userResult.users);
+
+        if (activeTab === 'councils') {
+            const councilResult = await AdminService.getCityCouncils();
+            if (councilResult.success) {
+                setCouncils(councilResult.councils);
+            } else {
+                setError(councilResult.errors?.[0] || 'Помилка завантаження списку рад');
             }
+        }
+        setLoading(false);
+    };
 
-            setLoading(false);
-        };
-
+    useEffect(() => {
         fetchData();
     }, [activeTab]);
+
+    // Пошук користувача за email
+    const handleEmailChange = (e) => {
+        const value = e.target.value;
+        setEmailSearch(value);
+
+        if (formData.headUserId) {
+            setFormData(prev => ({ ...prev, headUserId: '' }));
+        }
+
+        if (value.trim().length > 0) {
+            const filtered = users.filter(u =>
+                u.email && u.email.toLowerCase().includes(value.toLowerCase())
+            );
+            setSuggestions(filtered);
+        } else {
+            setSuggestions([]);
+        }
+    };
+
+    const selectUser = (user) => {
+        setEmailSearch(user.email);
+        setFormData(prev => ({ ...prev, headUserId: user.id || user.userId }));
+        setSuggestions([]);
+    };
+
+    // Робота з Google Maps Autocomplete
+    const onLoadAutocomplete = (instance) => setAutocomplete(instance);
+
+    const onPlaceChanged = () => {
+        if (autocomplete !== null) {
+            const place = autocomplete.getPlace();
+            if (place.geometry && place.geometry.location) {
+                const lat = place.geometry.location.lat();
+                const lng = place.geometry.location.lng();
+
+                setMapCenter({ lat, lng });
+                setMarkerPos({ lat, lng });
+
+                // Зберігаємо лише координати
+                setFormData(prev => ({
+                    ...prev,
+                    latitude: lat,
+                    longitude: lng
+                }));
+            }
+        }
+    };
+
+    const onMapClick = (e) => {
+        const lat = e.latLng.lat();
+        const lng = e.latLng.lng();
+        setMarkerPos({ lat, lng });
+        setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
+    };
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setFormError('');
+
+        if (!formData.headUserId) {
+            setFormError('Будь ласка, оберіть дійсного користувача зі списку підказок email.');
+            return;
+        }
+
+        if (!formData.latitude || !formData.longitude) {
+            setFormError('Будь ласка, оберіть адресу на карті або через пошук.');
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        const payload = {
+            name: formData.name,
+            contactEmail: formData.contactEmail,
+            headUserId: formData.headUserId,
+            latitude: parseFloat(formData.latitude),
+            longitude: parseFloat(formData.longitude)
+        };
+
+        const result = await AdminService.createCityCouncil(payload);
+
+        if (result.success) {
+            setShowModal(false);
+            setFormData({
+                name: '', contactEmail: '', headUserId: '',
+                latitude: 0, longitude: 0
+            });
+            setEmailSearch('');
+            setMarkerPos(null);
+            fetchData();
+        } else {
+            setFormError(result.errors?.[0] || 'Не вдалося створити раду.');
+        }
+        setIsSubmitting(false);
+    };
 
     return (
         <div className="admin-dashboard-container">
             <div className="admin-header">
-                <h1>Admin Dashboard</h1>
-                <p>Manage users, city councils, and view system analytics</p>
+                <h1>Панель адміністратора</h1>
+                <p>Керування користувачами, міськими радами та аналітика</p>
             </div>
 
-            {/* Stats Cards */}
             <div className="admin-stats-grid">
                 <div className="admin-stat-card">
                     <div className="stat-info">
-                        <h3>Total Users</h3>
-                        {/* Dynamically calculate total users if on the users tab */}
-                        <p className="stat-value">{users.length > 0 ? users.length : '-'}</p>
-                        <p className="stat-subtext">Registered accounts</p>
+                        <h3>Користувачі</h3>
+                        <p className="stat-value">{Array.isArray(users) ? users.length : '-'}</p>
+                        <p className="stat-subtext">зареєстровано</p>
                     </div>
                     <div className="stat-icon" style={{ color: '#2563eb' }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                    </div>
-                </div>
-
-                {/* Static placeholders for other stats until API endpoints are available */}
-                <div className="admin-stat-card">
-                    <div className="stat-info">
-                        <h3>Total Appeals</h3>
-                        <p className="stat-value">-</p>
-                        <p className="stat-subtext">All time</p>
-                    </div>
-                    <div className="stat-icon" style={{ color: '#d97706' }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
                     </div>
                 </div>
 
                 <div className="admin-stat-card">
                     <div className="stat-info">
-                        <h3>Resolved</h3>
-                        <p className="stat-value">-</p>
-                        <p className="stat-subtext positive">Rate</p>
+                        <h3>Міські ради</h3>
+                        <p className="stat-value">{Array.isArray(councils) ? councils.length : '-'}</p>
+                        <p className="stat-subtext">активні об'єкти</p>
                     </div>
                     <div className="stat-icon" style={{ color: '#10b981' }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                    </div>
-                </div>
-
-                <div className="admin-stat-card">
-                    <div className="stat-info">
-                        <h3>Efficiency</h3>
-                        <p className="stat-value">-</p>
-                        <p className="stat-subtext positive">This month</p>
-                    </div>
-                    <div className="stat-icon" style={{ color: '#8b5cf6' }}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
                     </div>
                 </div>
             </div>
 
-            {/* Tabs */}
             <div className="admin-tabs">
-                <button
-                    className={`admin-tab ${activeTab === 'users' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('users')}
-                >
-                    User Management
+                <button className={`admin-tab ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
+                    Користувачі
                 </button>
-                <button
-                    className={`admin-tab ${activeTab === 'councils' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('councils')}
-                >
-                    City Councils Management
-                </button>
-                <button
-                    className={`admin-tab ${activeTab === 'analytics' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('analytics')}
-                >
-                    Analytics
+                <button className={`admin-tab ${activeTab === 'councils' ? 'active' : ''}`} onClick={() => setActiveTab('councils')}>
+                    Міські ради
                 </button>
             </div>
 
-            {/* Tab Content */}
             <div className="admin-content-card">
+                {loading && <div style={{ padding: '40px 0', textAlign: 'center' }}>Завантаження...</div>}
 
-                {/* Error State */}
-                {error && (
-                    <div style={{ padding: '15px', backgroundColor: '#fee2e2', color: '#991b1b', borderRadius: '6px', marginBottom: '20px' }}>
-                        {error}
+                {activeTab === 'users' && !loading && (
+                    <div style={{ overflowX: 'auto' }}>
+                        <table className="admin-table">
+                            <thead>
+                            <tr><th>Ім'я</th><th>Email</th><th>Роль</th><th>Статус</th></tr>
+                            </thead>
+                            <tbody>
+                            {users.map((u) => (
+                                <tr key={u.id || u.userId}>
+                                    <td>{u.fullName || u.name}</td>
+                                    <td>{u.email}</td>
+                                    <td><span className={`badge badge-role-${(u.role || 'Citizen').toLowerCase()}`}>{u.role}</span></td>
+                                    <td><span className={`badge badge-status-${(u.status || 'active').toLowerCase()}`}>{u.status}</span></td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
                     </div>
                 )}
 
-                {/* Loading State */}
-                {loading && (
-                    <div style={{ padding: '40px 0', textAlign: 'center', color: '#6b7280' }}>
-                        Loading data...
-                    </div>
-                )}
-
-                {/* USERS TAB */}
-                {activeTab === 'users' && !loading && !error && (
+                {activeTab === 'councils' && !loading && (
                     <>
                         <div className="content-header">
-                            <div>
-                                <h2>User Management</h2>
-                                <p>Manage user accounts and permissions</p>
-                            </div>
-                            <button className="btn-primary">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
-                                Add User
-                            </button>
+                            <h2>Список міських рад</h2>
+                            <button className="btn-primary" onClick={() => setShowModal(true)}>+ Додати раду</button>
                         </div>
-
                         <div style={{ overflowX: 'auto' }}>
                             <table className="admin-table">
                                 <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Role</th>
-                                    <th>Status</th>
-                                    <th>Created</th>
-                                    <th>Actions</th>
-                                </tr>
+                                <tr><th>Назва</th><th>Email</th><th>Місто</th><th>Район</th></tr>
                                 </thead>
                                 <tbody>
-                                {users.length === 0 ? (
-                                    <tr><td colSpan="6" style={{ textAlign: 'center' }}>No users found.</td></tr>
-                                ) : (
-                                    users.map((u) => {
-                                        // Defensive mapping in case backend DTO keys vary slightly
-                                        const name = u.fullName || u.name || u.userName || 'N/A';
-                                        const role = u.role || (u.roles && u.roles[0]) || 'Citizen';
-                                        const status = u.status || (u.isActive === false ? 'inactive' : 'active');
-                                        const createdDate = u.createdAt || u.created || u.dateCreated
-                                            ? new Date(u.createdAt || u.created || u.dateCreated).toLocaleDateString()
-                                            : 'Unknown';
-
-                                        return (
-                                            <tr key={u.id || u.userId}>
-                                                <td>{name}</td>
-                                                <td>{u.email}</td>
-                                                <td>
-                            <span className={`badge badge-role-${role.toLowerCase()}`}>
-                              {role}
-                            </span>
-                                                </td>
-                                                <td>
-                            <span className={`badge badge-status-${status.toLowerCase()}`}>
-                              {status}
-                            </span>
-                                                </td>
-                                                <td>{createdDate}</td>
-                                                <td>
-                                                    <div className="action-btns">
-                                                        <button className="action-btn" title="Edit">
-                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                                                        </button>
-                                                        <button className="action-btn" title={status.toLowerCase() === 'active' ? 'Deactivate' : 'Activate'}>
-                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
-                                )}
+                                {councils.map((c) => (
+                                    <tr key={c.id}>
+                                        <td style={{ fontWeight: '500' }}>{c.name}</td>
+                                        <td>{c.contactEmail}</td><td>{c.city || 'N/A'}</td><td>{c.district || 'N/A'}</td>
+                                    </tr>
+                                ))}
                                 </tbody>
                             </table>
                         </div>
                     </>
-                )}
-
-                {/* CITY COUNCILS TAB */}
-                {activeTab === 'councils' && !loading && !error && (
-                    <>
-                        <div className="content-header">
-                            <div>
-                                <h2>City Councils Management</h2>
-                                <p>Manage municipal entities and jurisdictions</p>
-                            </div>
-                            <button className="btn-primary">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                                Add Council
-                            </button>
-                        </div>
-
-                        <div style={{ overflowX: 'auto' }}>
-                            <table className="admin-table">
-                                <thead>
-                                <tr>
-                                    <th>Council Name</th>
-                                    <th>City</th>
-                                    <th>District</th>
-                                    <th>Oblast</th>
-                                    <th>Actions</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {councils.length === 0 ? (
-                                    <tr><td colSpan="5" style={{ textAlign: 'center' }}>No city councils found.</td></tr>
-                                ) : (
-                                    councils.map((c) => {
-                                        // Defensive mapping for councils
-                                        const name = c.name || c.councilName || 'N/A';
-                                        const city = c.city || c.cityName || 'N/A';
-                                        const district = c.district || c.districtName || 'N/A';
-                                        const oblast = c.oblast || c.region || 'N/A';
-
-                                        return (
-                                            <tr key={c.id || c.councilId}>
-                                                <td style={{ fontWeight: '500' }}>{name}</td>
-                                                <td>{city}</td>
-                                                <td>{district}</td>
-                                                <td>{oblast}</td>
-                                                <td>
-                                                    <div className="action-btns">
-                                                        <button className="action-btn" title="Edit">
-                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                                                        </button>
-                                                        <button className="action-btn" title="Delete" style={{ color: '#ef4444' }}>
-                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
-                                )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </>
-                )}
-
-                {/* ANALYTICS TAB */}
-                {activeTab === 'analytics' && (
-                    <div style={{ padding: '40px 0', textAlign: 'center', color: '#6b7280' }}>
-                        Analytics Module - Coming Soon
-                    </div>
                 )}
             </div>
+
+            {showModal && (
+                <div className="admin-modal-overlay" onClick={() => setShowModal(false)}>
+                    <div className="admin-modal-content" onClick={e => e.stopPropagation()}>
+                        <h2>Створення міської ради</h2>
+                        {formError && <div className="alert alert-error">{formError}</div>}
+
+                        <form onSubmit={handleSubmit}>
+                            <div className="form-grid">
+                                <div className="form-group full-width">
+                                    <label>Назва ради</label>
+                                    <input type="text" name="name" value={formData.name} onChange={handleInputChange} required />
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Контактний Email</label>
+                                    <input type="email" name="contactEmail" value={formData.contactEmail} onChange={handleInputChange} required />
+                                </div>
+
+                                <div className="form-group autocomplete-wrapper">
+                                    <label>Голова ради (Пошук за Email)</label>
+                                    <input
+                                        type="text"
+                                        value={emailSearch}
+                                        onChange={handleEmailChange}
+                                        placeholder="Введіть email..."
+                                        required
+                                        style={{ borderColor: formData.headUserId ? '#10b981' : '#d1d5db' }}
+                                    />
+                                    {suggestions.length > 0 && (
+                                        <div className="suggestions-dropdown">
+                                            {suggestions.map(u => (
+                                                <div key={u.id || u.userId} className="suggestion-item" onClick={() => selectUser(u)}>
+                                                    {u.email} ({u.fullName || u.name})
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="form-group full-width" style={{ marginTop: '10px' }}>
+                                    <label style={{ color: '#2563eb' }}>Пошук адреси або клік по карті</label>
+                                    {isLoaded ? (
+                                        <>
+                                            <Autocomplete onLoad={onLoadAutocomplete} onPlaceChanged={onPlaceChanged}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Шукати в Google Maps..."
+                                                    style={{ border: '2px solid #2563eb', width: '100%', marginBottom: '10px' }}
+                                                    onKeyDown={(e) => { e.key === 'Enter' && e.preventDefault(); }}
+                                                />
+                                            </Autocomplete>
+
+                                            <GoogleMap
+                                                mapContainerStyle={mapContainerStyle}
+                                                center={mapCenter}
+                                                zoom={14}
+                                                options={{ streetViewControl: false, mapTypeControl: false }}
+                                                onClick={onMapClick}
+                                            >
+                                                {markerPos && <Marker position={markerPos} />}
+                                            </GoogleMap>
+                                        </>
+                                    ) : <div>Завантаження карт...</div>}
+                                </div>
+
+                                {/* Відображення збережених координат */}
+                                {formData.latitude !== 0 && (
+                                    <div className="form-group full-width" style={{ fontSize: '13px', color: '#10b981', marginTop: '-10px', fontWeight: '500' }}>
+                                        ✓ Координати збережено: {formData.latitude.toFixed(5)}, {formData.longitude.toFixed(5)}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="modal-actions">
+                                <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Скасувати</button>
+                                <button type="submit" className="btn-primary" disabled={isSubmitting || !formData.headUserId || !formData.latitude}>
+                                    {isSubmitting ? 'Збереження...' : 'Зберегти раду'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

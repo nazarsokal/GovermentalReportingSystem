@@ -126,9 +126,19 @@ public class AdminController : ControllerBase
             });
         }
 
+        if (createCityCouncilDto.HeadUserId == Guid.Empty)
+        {
+            _logger.LogWarning("Empty head user ID provided");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "Head user ID is required"
+            });
+        }
+
         try
         {
-            var councilId = await _adminService.CreateCityCouncilAsync(createCityCouncilDto);
+            var councilId = await _cityCouncilService.CreateCityCouncilAsync(createCityCouncilDto);
 
             _logger.LogInformation($"City council created successfully with ID: {councilId}, Name: {createCityCouncilDto.Name}");
 
@@ -149,6 +159,7 @@ public class AdminController : ControllerBase
                 Message = ex.Message
             });
         }
+
         catch (ArgumentException ex)
         {
             _logger.LogError($"Invalid argument: {ex.Message}");

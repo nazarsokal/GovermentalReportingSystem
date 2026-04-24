@@ -12,15 +12,27 @@ namespace ProblemReportingSystem.Application.Services;
 public class CityCouncilService : ICityCouncilService
 {
     private readonly ICityCouncilRepository _councilRepository;
+    private readonly IAddressRepository _addressRepository;
+    private readonly ICouncilEmployeeRepository _councilEmployeeRepository;
+    private readonly IUserRepository _userRepository;
+    private readonly IGeolocateService _geolocateService;
     private readonly IMapper _mapper;
     private readonly ILogger<CityCouncilService> _logger;
 
     public CityCouncilService(
         ICityCouncilRepository councilRepository,
+        IAddressRepository addressRepository,
+        ICouncilEmployeeRepository councilEmployeeRepository,
+        IUserRepository userRepository,
+        IGeolocateService geolocateService,
         IMapper mapper,
         ILogger<CityCouncilService> logger)
     {
         _councilRepository = councilRepository ?? throw new ArgumentNullException(nameof(councilRepository));
+        _addressRepository = addressRepository ?? throw new ArgumentNullException(nameof(addressRepository));
+        _councilEmployeeRepository = councilEmployeeRepository ?? throw new ArgumentNullException(nameof(councilEmployeeRepository));
+        _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
+        _geolocateService = geolocateService ?? throw new ArgumentNullException(nameof(geolocateService));
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -33,18 +45,76 @@ public class CityCouncilService : ICityCouncilService
         if (string.IsNullOrWhiteSpace(createCityCouncilDto.Name))
             throw new ArgumentException("Council name cannot be null or empty", nameof(createCityCouncilDto.Name));
 
+        if (createCityCouncilDto.HeadUserId == Guid.Empty)
+            throw new ArgumentException("Head user ID cannot be empty", nameof(createCityCouncilDto.HeadUserId));
+
+        // Check if council already exists
         var existingCouncil = await _councilRepository.GetCouncilByNameAsync(createCityCouncilDto.Name);
         if (existingCouncil != null)
             throw new InvalidOperationException($"Council with name '{createCityCouncilDto.Name}' already exists");
 
-        var council = _mapper.Map<CityCouncil>(createCityCouncilDto);
-        council.CouncilId = Guid.NewGuid();
+        // Verify head user exists
+        var headUser = await _userRepository.GetByIdWithRolesAsync(createCityCouncilDto.HeadUserId);
+        if (headUser == null)
+            throw new InvalidOperationException($"User with ID '{createCityCouncilDto.HeadUserId}' not found");
 
-        await _councilRepository.CreateAsync(council);
-        _logger.LogInformation($"City council created successfully with ID: {council.CouncilId}, Name: {council.Name}");
-        return council.CouncilId;
+        try
+        {
+            var addressFromCoordinates = await _geolocateService.GetAddressFromCoordinatesAsync(createCityCouncilDto.Latitude, createCityCouncilDto.Longitude);
+            // Get coordinates from address using geolocation service
+            // var addressResult = await GetCoordinatesFromAddressAsync(createCityCouncilDto);
+
+            // Create address entity
+            var address = new Address
+            {
+                AddressId = Guid.NewGuid(),
+                City = addressFromCoordinates.City,
+                Street = addressFromCoordinates.Street,
+                BuildingNumber = addressFromCoordinates.BuildingNumber,
+                District = addressFromCoordinates.District,
+                Oblast = addressFromCoordinates.Oblast,
+                Country = addressFromCoordinates.Country ?? "Ukraine",
+                Postcode = addressFromCoordinates.Postcode,
+                Latitude = createCityCouncilDto.Latitude,
+                Longitude = createCityCouncilDto.Longitude
+            };
+
+            await _addressRepository.CreateAsync(address);
+            _logger.LogInformation($"Address created with ID: {address.AddressId}");
+
+            // Create city council
+            var council = new CityCouncil
+            {
+                CouncilId = Guid.NewGuid(),
+                Name = createCityCouncilDto.Name,
+                ContactEmail = createCityCouncilDto.ContactEmail,
+                AddressId = address.AddressId
+            };
+
+            await _councilRepository.CreateAsync(council);
+            _logger.LogInformation($"City council created successfully with ID: {council.CouncilId}, Name: {council.Name}");
+
+            // Create council employee record for the head user
+            var councilEmployee = new CouncilEmployee
+            {
+                EmployeeId = Guid.NewGuid(),
+                CouncilId = council.CouncilId,
+                UserId = createCityCouncilDto.HeadUserId,
+                Position = "Head"
+            };
+
+            await _councilEmployeeRepository.CreateAsync(councilEmployee);
+            _logger.LogInformation($"Council head assigned with ID: {councilEmployee.EmployeeId}, User ID: {createCityCouncilDto.HeadUserId}");
+
+            return council.CouncilId;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error creating city council: {ex.Message}", ex);
+            throw;
+        }
     }
-
+    
     public async Task<IEnumerable<CityCouncilDto>> GetAllCityCouncilsAsync()
     {
         var councils = await _councilRepository.GetAllCouncilsAsync();
