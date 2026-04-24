@@ -18,6 +18,21 @@ public class UserRepository : ProblemReportingSystemRepository<User>, IUserRepos
     }
 
     /// <summary>
+    /// Get user by ID with all related entities including roles
+    /// </summary>
+    public async Task<User?> GetByIdWithRolesAsync(Guid id)
+    {
+        if (id == Guid.Empty)
+            throw new ArgumentException("User ID cannot be empty", nameof(id));
+
+        return await _context.Users
+            .Include(u => u.Address)
+            .Include(u => u.Admin)
+            .Include(u => u.CouncilEmployee)
+            .FirstOrDefaultAsync(u => u.UserId == id);
+    }
+
+    /// <summary>
     /// Get user by email address with all related entities
     /// </summary>
     public async Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)

@@ -30,3 +30,40 @@ public class CityCouncilResponseDto
 
     public Guid? AddressId { get; set; }
 }
+
+public class UsersListResponse
+{
+    public bool Success { get; set; }
+
+    public string Message { get; set; } = null!;
+
+    public int TotalCount { get; set; }
+
+    public List<UserListItemDto> Users { get; set; } = new List<UserListItemDto>();
+}
+
+public class UserListItemDto
+{
+    public Guid UserId { get; set; }
+
+    public string FullName { get; set; } = null!;
+
+    public string Email { get; set; } = null!;
+
+    public string Role { get; set; } = null!;
+
+    public bool? IsActive { get; set; }
+
+    public Guid? AddressId { get; set; }
+}
+
+public class CreateCityCouncilResponse
+{
+    public bool Success { get; set; }
+
+    public string Message { get; set; } = null!;
+
+    public Guid CouncilId { get; set; }
+
+    public string CouncilName { get; set; } = null!;
+}

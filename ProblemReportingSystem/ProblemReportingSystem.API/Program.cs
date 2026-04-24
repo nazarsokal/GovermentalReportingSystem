@@ -100,6 +100,7 @@ builder.Services.AddAuthentication(options =>
 
 // Register Services
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IGeolocateService, GeolocateService>();
 builder.Services.AddScoped<IProblemService, ProblemService>();
 builder.Services.AddScoped<IAppealService, AppealService>();

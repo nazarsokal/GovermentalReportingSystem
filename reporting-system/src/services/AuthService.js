@@ -1,6 +1,25 @@
+import { jwtDecode } from 'jwt-decode';
+
 const API_BASE_URL = 'http://localhost:5216';
 
 class AuthService {
+  // Helper method to extract roles from JWT
+  static extractRolesFromToken(token) {
+    try {
+      const decodedToken = jwtDecode(token);
+      // ASP.NET Core often uses standard schema URLs for claims, so we check both
+      const extractedRole = decodedToken.role || decodedToken['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'];
+
+      if (extractedRole) {
+        // Normalize to an array (if user has 1 role, ASP.NET might send a string instead of an array)
+        return Array.isArray(extractedRole) ? extractedRole : [extractedRole];
+      }
+    } catch (decodeError) {
+      console.error('Failed to decode JWT:', decodeError);
+    }
+    return [];
+  }
+
   // Register new user
   static async register(fullName, email, password, confirmPassword, city, district, oblast) {
     try {
@@ -14,7 +33,7 @@ class AuthService {
           Email: email,
           Password: password,
           ConfirmPassword: confirmPassword,
-          City: city,           // <-- Add this line
+          City: city,
           District: district,
           Oblast: oblast
         }),
@@ -30,22 +49,23 @@ class AuthService {
         localStorage.setItem('expiresIn', data.expiresIn);
 
         // Prepare user object
-        let user = data.user;
+        let user = data.user || {};
 
-        // Check if address data is in separate object (backend returning address separately)
+        // --- NEW: Decode JWT to get roles on Register ---
+        const userRoles = this.extractRolesFromToken(data.accessToken);
+        user.roles = userRoles;
+        user.isAdmin = userRoles.includes('Admin');
+        console.log('🔐 Roles extracted on register:', userRoles);
+
+        // Check if address data is in separate object
         if (data.address) {
-          console.log('Address data received during registration:', data.address);
-
-          // Add district and oblast to user object
           if (data.address.district) {
             user.district = data.address.district;
             localStorage.setItem('userDistrict', data.address.district);
-            console.log('Stored district from address:', data.address.district);
           }
           if (data.address.oblast) {
             user.oblast = data.address.oblast;
             localStorage.setItem('userOblast', data.address.oblast);
-            console.log('Stored oblast from address:', data.address.oblast);
           }
         }
 
@@ -68,9 +88,19 @@ class AuthService {
           message: data.message,
         };
       } else {
+        // Parse ASP.NET Core validation errors
+        let parsedErrors = [];
+        if (data.errors && typeof data.errors === 'object' && !Array.isArray(data.errors)) {
+          Object.values(data.errors).forEach(errArr => {
+            if (Array.isArray(errArr)) parsedErrors.push(...errArr);
+          });
+        } else if (Array.isArray(data.errors)) {
+          parsedErrors = data.errors;
+        }
+
         return {
           success: false,
-          errors: data.errors || ['Registration failed'],
+          errors: parsedErrors.length > 0 ? parsedErrors : [data.message || 'Registration failed'],
           message: data.message,
         };
       }
@@ -108,38 +138,32 @@ class AuthService {
         localStorage.setItem('tokenType', data.tokenType);
         localStorage.setItem('expiresIn', data.expiresIn);
 
-        // Prepare user object and extract district/oblast
-        let user = data.user;
+        // Prepare user object
+        let user = data.user || {};
 
-        // Check if address data is in separate object (backend returning address separately)
+        // --- NEW: Decode JWT to get roles on Login ---
+        const userRoles = this.extractRolesFromToken(data.accessToken);
+        user.roles = userRoles;
+        user.isAdmin = userRoles.includes('Admin');
+        console.log('🔐 Roles extracted on login:', userRoles);
+
+        // Check if address data is in separate object
         if (data.address) {
-          console.log('Address data received:', data.address);
-
-          // Add district and oblast to user object
           if (data.address.district) {
             user.district = data.address.district;
             localStorage.setItem('userDistrict', data.address.district);
-            console.log('✅ Stored district from address:', data.address.district);
           }
           if (data.address.oblast) {
             user.oblast = data.address.oblast;
             localStorage.setItem('userOblast', data.address.oblast);
-            console.log('✅ Stored oblast from address:', data.address.oblast);
           }
         }
 
         // Also check if district/oblast are directly in user object
-        if (user && user.district) {
-          localStorage.setItem('userDistrict', user.district);
-          console.log('✅ Stored district from user object:', user.district);
-        }
-        if (user && user.oblast) {
-          localStorage.setItem('userOblast', user.oblast);
-          console.log('✅ Stored oblast from user object:', user.oblast);
-        }
+        if (user && user.district) localStorage.setItem('userDistrict', user.district);
+        if (user && user.oblast) localStorage.setItem('userOblast', user.oblast);
 
         localStorage.setItem('user', JSON.stringify(user));
-        console.log('✅ User stored with district:', user.district);
 
         return {
           success: true,
@@ -291,6 +315,16 @@ class AuthService {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
         localStorage.setItem('tokenType', data.tokenType);
+
+        // Re-extract roles on token refresh just in case they were updated
+        const user = this.getUser();
+        if (user) {
+          const userRoles = this.extractRolesFromToken(data.accessToken);
+          user.roles = userRoles;
+          user.isAdmin = userRoles.includes('Admin');
+          localStorage.setItem('user', JSON.stringify(user));
+        }
+
         return data.accessToken;
       } else {
         // If refresh fails, logout user
@@ -305,4 +339,3 @@ class AuthService {
 }
 
 export default AuthService;
-

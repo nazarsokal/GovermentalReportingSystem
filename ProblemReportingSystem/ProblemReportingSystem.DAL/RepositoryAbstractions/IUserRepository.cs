@@ -9,6 +9,13 @@ namespace ProblemReportingSystem.DAL.RepositoryAbstractions;
 public interface IUserRepository : IProblemReportingSystemRepository<User>
 {
     /// <summary>
+    /// Get user by ID with all related entities including roles
+    /// </summary>
+    /// <param name="id">The user ID</param>
+    /// <returns>The user if found, null otherwise</returns>
+    Task<User?> GetByIdWithRolesAsync(Guid id);
+
+    /// <summary>
     /// Get user by email address
     /// </summary>
     /// <param name="email">The email address</param>

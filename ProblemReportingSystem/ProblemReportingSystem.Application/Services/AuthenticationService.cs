@@ -721,7 +721,7 @@ public class AuthenticationService : IAuthenticationService
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
                 return null;
 
-            var user = await _userRepository.GetByIdAsync(userId);
+            var user = await _userRepository.GetByIdWithRolesAsync(userId);
 
             return user != null ? _mapper.Map<UserDto>(user) : null;
         }

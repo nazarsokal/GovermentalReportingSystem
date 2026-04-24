@@ -40,3 +40,20 @@ public class CityCouncilDetailsDto : CityCouncilDto
     public ICollection<PollDto> Polls { get; set; } = new List<PollDto>();
 }
 
+/// <summary>
+/// DTO for city council response that includes address information
+/// </summary>
+public class CityCouncilWithAddressDto
+{
+    public Guid CouncilId { get; set; }
+
+    public string Name { get; set; } = null!;
+
+    public string? ContactEmail { get; set; }
+
+    public string? City { get; set; }
+
+    public string? District { get; set; }
+
+    public string? Oblast { get; set; }
+}

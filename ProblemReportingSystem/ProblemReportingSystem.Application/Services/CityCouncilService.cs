@@ -51,6 +51,20 @@ public class CityCouncilService : ICityCouncilService
         return _mapper.Map<IEnumerable<CityCouncilDto>>(councils);
     }
 
+    public async Task<IEnumerable<CityCouncilWithAddressDto>> GetAllCityCouncilsWithAddressAsync()
+    {
+        var councils = await _councilRepository.GetAllCouncilsAsync();
+        return councils.Select(c => new CityCouncilWithAddressDto
+        {
+            CouncilId = c.CouncilId,
+            Name = c.Name,
+            ContactEmail = c.ContactEmail,
+            City = c.Address?.City,
+            District = c.Address?.District,
+            Oblast = c.Address?.Oblast
+        });
+    }
+
     public async Task<CityCouncilDetailsDto?> GetCityCouncilByIdAsync(Guid councilId)
     {
         if (councilId == Guid.Empty)
@@ -205,4 +219,3 @@ public class CityCouncilService : ICityCouncilService
         return values;
     }
 }
-

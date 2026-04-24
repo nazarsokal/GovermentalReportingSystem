@@ -2,6 +2,8 @@ import React from 'react';
 import '../styles/Navbar.css';
 
 function Navbar({ user, onLogout, currentPage, setCurrentPage }) {
+  const isAdmin = user?.roles?.includes('Admin');
+  const isCouncil = user?.roles?.includes('CouncilEmployee');
   return (
     <nav className="navbar">
       <div className="navbar-container">
@@ -33,6 +35,21 @@ function Navbar({ user, onLogout, currentPage, setCurrentPage }) {
           >
             Stats & Statistics
           </button>
+
+          {isAdmin && (
+              <button
+                  className={`nav-item ${currentPage === 'adminDashboard' ? 'active' : ''}`}
+                  onClick={() => setCurrentPage('adminDashboard')} // <-- Must be exactly this string
+              >
+                Admin Dashboard
+              </button>
+          )}
+
+          {isCouncil && (
+              <button onClick={() => setCurrentPage('councilDashboard')}>
+                Council Dashboard
+              </button>
+          )}
         </div>
 
         <div className="navbar-right">

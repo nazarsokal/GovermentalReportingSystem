@@ -7,6 +7,7 @@ import CityMap from '../components/CityMap';
 import AppealService from '../services/AppealService';
 import ReportProblem from '../components/ReportProblem';
 import AppealDetails from '../components/AppealDetails';
+import AdminDashboard from '../components/AdminDashboard'; // <-- Ensure this is imported
 
 function DashboardPage({ user, onLogout }) {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -26,7 +27,6 @@ function DashboardPage({ user, onLogout }) {
   const [recentAppeals, setRecentAppeals] = useState([]);
   const [statsLoading, setStatsLoading] = useState(true);
 
-  // Функція для відкриття деталей (спільна для карти та списку)
   const handleViewDetails = (id) => {
     setSelectedAppealId(id);
     setCurrentPage('appealDetails');
@@ -80,6 +80,8 @@ function DashboardPage({ user, onLogout }) {
         <Navbar user={user} onLogout={onLogout} currentPage={currentPage} setCurrentPage={setCurrentPage} />
 
         <div className="dashboard-content">
+
+          {/* CITIZEN DASHBOARD TAB */}
           {currentPage === 'dashboard' && (
               <>
                 <div className="dashboard-header">
@@ -120,30 +122,24 @@ function DashboardPage({ user, onLogout }) {
                 <div className="main-content">
                   <div className="map-section">
                     <h2>City Infrastructure Map</h2>
-                    <CityMap
-                        user={user}
-                        onViewDetails={handleViewDetails}
-                    />
+                    <CityMap user={user} onViewDetails={handleViewDetails} />
                   </div>
 
                   <div className="recent-section">
-                    {/* ТУТ ДОДАНО ПЕРЕДАЧУ ФУНКЦІЇ onViewDetails */}
-                    <RecentAppeals
-                        appeals={recentAppeals}
-                        loading={statsLoading}
-                        onViewDetails={handleViewDetails}
-                    />
+                    <RecentAppeals appeals={recentAppeals} loading={statsLoading} onViewDetails={handleViewDetails} />
                   </div>
                 </div>
               </>
           )}
 
+          {/* REPORT PROBLEM TAB */}
           {currentPage === 'report' && (
               <div className="report-page">
                 <ReportProblem user={user} onSuccess={() => setCurrentPage('dashboard')} />
               </div>
           )}
 
+          {/* APPEAL DETAILS VIEW */}
           {currentPage === 'appealDetails' && selectedAppealId && (
               <div className="appeal-details-page">
                 <AppealDetails
@@ -156,12 +152,21 @@ function DashboardPage({ user, onLogout }) {
               </div>
           )}
 
+          {/* STATS TAB */}
           {currentPage === 'stats' && (
               <div className="stats-page">
                 <h1>Statistics</h1>
                 <p>View detailed statistics about city infrastructure.</p>
               </div>
           )}
+
+          {/* ADMIN DASHBOARD TAB */}
+          {currentPage === 'adminDashboard' && (
+              <div className="admin-page-wrapper">
+                <AdminDashboard />
+              </div>
+          )}
+
         </div>
       </div>
   );

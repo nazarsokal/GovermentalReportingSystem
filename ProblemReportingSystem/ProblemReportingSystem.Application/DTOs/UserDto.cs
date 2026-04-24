@@ -57,3 +57,18 @@ public class UserDetailsDto : UserDto
 
     public CouncilEmployeeDto? CouncilEmployee { get; set; }
 }
+
+public class UserWithRoleDto
+{
+    public Guid UserId { get; set; }
+
+    public string FullName { get; set; } = null!;
+
+    public string Email { get; set; } = null!;
+
+    public string Role { get; set; } = null!;
+
+    public bool? IsActive { get; set; }
+
+    public Guid? AddressId { get; set; }
+}
