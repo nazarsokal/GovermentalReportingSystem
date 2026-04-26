@@ -61,7 +61,8 @@ public class CouncilEmployeeController : ControllerBase
     private async Task<Guid> GetCurrentCouncilIdAsync()
     {
         var userId = GetCurrentUserId();
-        var councilId = await _employeeService.GetCouncilIdByEmployeeIdAsync(userId);
+        var employee = await _employeeService.GetEmployeeByUserIdAsync(userId);
+        var councilId = employee?.CouncilId;
         
         if (councilId == null || councilId == Guid.Empty)
         {
@@ -69,6 +70,27 @@ public class CouncilEmployeeController : ControllerBase
         }
         
         return councilId.Value;
+    }
+
+    private async Task<bool> IsCurrentUserCouncilHeadAsync()
+    {
+        var userId = GetCurrentUserId();
+        var employee = await _employeeService.GetEmployeeByUserIdAsync(userId);
+        return employee != null &&
+               !string.IsNullOrWhiteSpace(employee.Position) &&
+               employee.Position.Equals("Head", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<CouncilEmployeeDto?> GetCurrentEmployeeAsync()
+    {
+        var userId = GetCurrentUserId();
+        return await _employeeService.GetEmployeeByUserIdAsync(userId);
+    }
+
+    private static bool IsValidStatus(string status)
+    {
+        if (string.IsNullOrWhiteSpace(status)) return false;
+        return status is "Pending" or "In Progress" or "Resolved";
     }
 
     #region Appeals Management
@@ -96,6 +118,89 @@ public class CouncilEmployeeController : ControllerBase
         
         _logger.LogInformation($"Retrieved {appealResponses.Count} appeals for council {councilId}");
         return Ok(appealResponses);
+    }
+
+    /// <summary>
+    /// GET /api/council-employee/appeals/council
+    /// Gets all appeals assigned to the current employee's council.
+    /// </summary>
+    [HttpGet("appeals/council")]
+    [ProducesResponseType(typeof(List<AppealResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCouncilAppeals()
+    {
+        var councilId = await GetCurrentCouncilIdAsync();
+        var appeals = await _appealService.GetAppealsByCouncilAsync(councilId);
+        return Ok(_mapper.Map<List<AppealResponse>>(appeals));
+    }
+
+    /// <summary>
+    /// GET /api/council-employee/appeals/employee
+    /// Gets appeals assigned to current council employee.
+    /// </summary>
+    [HttpGet("appeals/employee")]
+    [ProducesResponseType(typeof(List<AppealResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCurrentEmployeeAppeals()
+    {
+        var currentUserId = GetCurrentUserId();
+        var employee = await _employeeService.GetEmployeeByUserIdAsync(currentUserId);
+        if (employee == null)
+        {
+            return Forbid();
+        }
+
+        var appeals = await _appealService.GetCouncilAppealsByEmployeeAsync(employee.EmployeeId);
+        return Ok(_mapper.Map<List<AppealResponse>>(appeals));
+    }
+
+    /// <summary>
+    /// GET /api/council-employee/appeals/status/{status}
+    /// Gets appeals by status for current employee's council.
+    /// </summary>
+    [HttpGet("appeals/status/{status}")]
+    [ProducesResponseType(typeof(List<AppealResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetAppealsByStatus(string status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            return BadRequest(new { success = false, message = "Status is required" });
+        }
+
+        var councilId = await GetCurrentCouncilIdAsync();
+        var appeals = await _appealService.GetAppealsByStatusAsync(councilId, status);
+        return Ok(_mapper.Map<List<AppealResponse>>(appeals));
+    }
+
+    /// <summary>
+    /// GET /api/council-employee/appeals/unassigned
+    /// Gets unassigned appeals from current employee's council.
+    /// </summary>
+    [HttpGet("appeals/unassigned")]
+    [ProducesResponseType(typeof(List<AppealResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCouncilUnassignedAppeals()
+    {
+        var councilId = await GetCurrentCouncilIdAsync();
+        var councilAppeals = await _appealService.GetAppealsByCouncilAsync(councilId);
+        var unassigned = councilAppeals.Where(a => !a.AssignedEmployeeId.HasValue).ToList();
+        return Ok(_mapper.Map<List<AppealResponse>>(unassigned));
+    }
+
+    /// <summary>
+    /// GET /api/council-employee/appeals/map/{district}
+    /// Gets district appeals for map view.
+    /// </summary>
+    [HttpGet("appeals/map/{district}")]
+    [ProducesResponseType(typeof(List<SummaryAppealForMapResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetAppealsForMap(string district)
+    {
+        if (string.IsNullOrWhiteSpace(district))
+        {
+            return BadRequest(new { success = false, message = "District is required" });
+        }
+
+        var appeals = await _appealService.GetAppealsByDistrictAsync(district);
+        return Ok(_mapper.Map<List<SummaryAppealForMapResponse>>(appeals));
     }
 
     /// <summary>
@@ -134,14 +239,38 @@ public class CouncilEmployeeController : ControllerBase
             return BadRequest(new { success = false, message = "Status is required" });
         }
 
-        var validStatuses = new[] { "Pending", "In Progress", "Resolved" };
-        if (!validStatuses.Contains(request.Status))
+        if (!IsValidStatus(request.Status))
         {
             _logger.LogWarning($"Invalid status: {request.Status}");
             return BadRequest(new { success = false, message = "Invalid status. Valid statuses are: Pending, In Progress, Resolved" });
         }
 
-        await GetCurrentCouncilIdAsync(); // Verify user has permission
+        var councilId = await GetCurrentCouncilIdAsync(); // Verify user has permission (council employee)
+
+        // AuthZ:
+        // - Head can change status for any appeal in their council
+        // - Regular employee can change status only for appeals assigned to them
+        var isHead = await IsCurrentUserCouncilHeadAsync();
+        if (!isHead)
+        {
+            var currentEmployee = await GetCurrentEmployeeAsync();
+            if (currentEmployee == null)
+            {
+                return Forbid();
+            }
+
+            var councilAppeals = await _appealService.GetAppealsByCouncilAsync(councilId);
+            var target = councilAppeals.FirstOrDefault(a => a.AppealId == problemId);
+            if (target == null)
+            {
+                return NotFound(new { success = false, message = "Appeal not found" });
+            }
+
+            if (target.AssignedEmployeeId != currentEmployee.EmployeeId)
+            {
+                return Forbid();
+            }
+        }
 
         var appeal = await _appealService.UpdateAppealStatusAsync(problemId, request.Status);
         if (appeal == null)
@@ -197,6 +326,159 @@ public class CouncilEmployeeController : ControllerBase
         var appealResponse = _mapper.Map<AppealResponse>(appeal);
         _logger.LogInformation($"Problem {problemId} assigned to employee {employee.EmployeeId}");
         return Ok(appealResponse);
+    }
+
+    /// <summary>
+    /// PUT /api/council-employee/appeals/{appealId}/assign
+    /// Assigns an appeal to a specific council employee (Head only).
+    /// </summary>
+    [HttpPut("appeals/{appealId}/assign")]
+    [ProducesResponseType(typeof(AppealResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AssignAppealToEmployee(Guid appealId, [FromBody] AssignAppealRequest request)
+    {
+        if (appealId == Guid.Empty || request == null || request.EmployeeId == Guid.Empty)
+        {
+            return BadRequest(new { success = false, message = "Invalid appeal ID or employee ID" });
+        }
+
+        var councilId = await GetCurrentCouncilIdAsync();
+        if (!await IsCurrentUserCouncilHeadAsync())
+        {
+            return Forbid();
+        }
+
+        // Verify appeal belongs to this council
+        var councilAppeals = await _appealService.GetAppealsByCouncilAsync(councilId);
+        if (!councilAppeals.Any(a => a.AppealId == appealId))
+        {
+            return NotFound(new { success = false, message = "Appeal not found" });
+        }
+
+        // Verify employee belongs to this council
+        var employeeCouncilId = await _employeeService.GetCouncilIdByEmployeeIdAsync(request.EmployeeId);
+        if (employeeCouncilId == null || employeeCouncilId.Value != councilId)
+        {
+            return BadRequest(new { success = false, message = "Employee does not belong to this council" });
+        }
+
+        var updated = await _appealService.AssignAppealAsync(appealId, request.EmployeeId);
+        if (updated == null)
+        {
+            return NotFound(new { success = false, message = "Appeal not found" });
+        }
+
+        return Ok(_mapper.Map<AppealResponse>(updated));
+    }
+
+    /// <summary>
+    /// PUT /api/council-employee/appeals/{appealId}/unassign
+    /// Unassigns an appeal.
+    /// </summary>
+    [HttpPut("appeals/{appealId}/unassign")]
+    [ProducesResponseType(typeof(AppealResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UnassignAppeal(Guid appealId)
+    {
+        if (appealId == Guid.Empty)
+        {
+            return BadRequest(new { success = false, message = "Invalid appeal ID" });
+        }
+
+        await GetCurrentCouncilIdAsync();
+        var appeal = await _appealService.UnassignAppealAsync(appealId);
+        if (appeal == null)
+        {
+            return NotFound(new { success = false, message = "Appeal not found" });
+        }
+
+        return Ok(_mapper.Map<AppealResponse>(appeal));
+    }
+
+    #endregion
+
+    #region Employee Management
+
+    /// <summary>
+    /// GET /api/council-employee/employees
+    /// Gets all employees for the current council (Head only).
+    /// </summary>
+    [HttpGet("employees")]
+    [ProducesResponseType(typeof(List<CouncilEmployeeListItemResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetCouncilEmployees()
+    {
+        if (!await IsCurrentUserCouncilHeadAsync())
+        {
+            return Forbid();
+        }
+
+        var councilId = await GetCurrentCouncilIdAsync();
+        var employees = await _employeeService.GetCouncilEmployeesWithDetailsAsync(councilId);
+
+        var response = employees.Select(e => new CouncilEmployeeListItemResponse
+        {
+            EmployeeId = e.EmployeeId,
+            UserId = e.UserId,
+            FullName = e.User?.FullName,
+            Email = e.User?.Email,
+            Position = e.Position
+        }).ToList();
+
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// POST /api/council-employee/employees
+    /// Registers a new council employee in the current employee's council.
+    /// Only council heads can create new council employees.
+    /// </summary>
+    [HttpPost("employees")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> RegisterCouncilEmployee([FromBody] RegisterCouncilEmployeeRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Validation failed",
+                errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
+            });
+        }
+
+        var councilId = await GetCurrentCouncilIdAsync();
+        if (!await IsCurrentUserCouncilHeadAsync())
+        {
+            return Forbid();
+        }
+
+        try
+        {
+            var employeeId = await _employeeService.RegisterCouncilEmployeeAsync(
+                councilId,
+                request.FullName,
+                request.Email,
+                request.Password,
+                request.Position);
+
+            return StatusCode(StatusCodes.Status201Created, new
+            {
+                success = true,
+                employeeId,
+                councilId,
+                message = "Council employee registered successfully"
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
     }
 
     #endregion
@@ -407,6 +689,187 @@ public class CouncilEmployeeController : ControllerBase
 
         _logger.LogInformation($"Retrieved efficiency report for council {councilId}");
         return Ok(efficiencyResponse);
+    }
+
+    /// <summary>
+    /// GET /api/council-employee/statistics/overall
+    /// Gets overall system appeal statistics.
+    /// </summary>
+    [HttpGet("statistics/overall")]
+    [ProducesResponseType(typeof(AppealStatisticsDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetOverallStatistics()
+    {
+        await GetCurrentCouncilIdAsync();
+        var stats = await _appealService.GetAppealStatisticsAsync();
+        return Ok(stats);
+    }
+
+    /// <summary>
+    /// GET /api/council-employee/statistics/council
+    /// Gets statistics for current employee's council.
+    /// </summary>
+    [HttpGet("statistics/council")]
+    [ProducesResponseType(typeof(AppealStatisticsDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCouncilStatistics()
+    {
+        var councilId = await GetCurrentCouncilIdAsync();
+        var stats = await _appealService.GetCouncilAppealStatisticsAsync(councilId);
+        return Ok(stats);
+    }
+
+    /// <summary>
+    /// GET /api/council-employee/statistics/employee
+    /// Gets statistics for current employee.
+    /// </summary>
+    [HttpGet("statistics/employee")]
+    [ProducesResponseType(typeof(AppealStatisticsDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCurrentEmployeeStatistics()
+    {
+        var currentUserId = GetCurrentUserId();
+        var employee = await _employeeService.GetEmployeeByUserIdAsync(currentUserId);
+        if (employee == null)
+        {
+            return Forbid();
+        }
+
+        var stats = await _appealService.GetEmployeeAppealStatisticsAsync(employee.EmployeeId);
+        return Ok(stats);
+    }
+
+    /// <summary>
+    /// GET /api/council-employee/statistics/status-distribution
+    /// Gets overall status distribution.
+    /// </summary>
+    [HttpGet("statistics/status-distribution")]
+    [ProducesResponseType(typeof(Dictionary<string, int>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStatusDistribution()
+    {
+        await GetCurrentCouncilIdAsync();
+        var distribution = await _appealService.GetAppealStatusDistributionAsync();
+        return Ok(distribution);
+    }
+
+    /// <summary>
+    /// GET /api/council-employee/statistics/council/status-distribution
+    /// Gets status distribution for current council.
+    /// </summary>
+    [HttpGet("statistics/council/status-distribution")]
+    [ProducesResponseType(typeof(Dictionary<string, int>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCouncilStatusDistribution()
+    {
+        var councilId = await GetCurrentCouncilIdAsync();
+        var distribution = await _appealService.GetCouncilStatusDistributionAsync(councilId);
+        return Ok(distribution);
+    }
+
+    /// <summary>
+    /// GET /api/council-employee/statistics/average-resolution-time
+    /// Gets average resolution time in days.
+    /// </summary>
+    [HttpGet("statistics/average-resolution-time")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAverageResolutionTime()
+    {
+        await GetCurrentCouncilIdAsync();
+        var avgDays = await _appealService.GetAverageResolutionTimeInDaysAsync();
+        return Ok(new { averageResolutionDays = avgDays });
+    }
+
+    /// <summary>
+    /// GET /api/council-employee/statistics/trends
+    /// Gets appeal trends for selected period.
+    /// </summary>
+    [HttpGet("statistics/trends")]
+    [ProducesResponseType(typeof(AppealTrendDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetTrends([FromQuery] int daysBack = 30)
+    {
+        if (daysBack <= 0)
+        {
+            return BadRequest(new { success = false, message = "Days back must be greater than 0" });
+        }
+
+        await GetCurrentCouncilIdAsync();
+        var trends = await _appealService.GetAppealTrendAsync(daysBack);
+        return Ok(trends);
+    }
+
+    /// <summary>
+    /// GET /api/council-employee/appeals/{appealId}/summary
+    /// Gets summary for a single appeal.
+    /// </summary>
+    [HttpGet("appeals/{appealId}/summary")]
+    [ProducesResponseType(typeof(AppealSummaryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetAppealSummary(Guid appealId)
+    {
+        if (appealId == Guid.Empty)
+        {
+            return BadRequest(new { success = false, message = "Invalid appeal ID" });
+        }
+
+        await GetCurrentCouncilIdAsync();
+        var appeal = await _appealService.GetAppealByIdAsync(appealId);
+        if (appeal == null)
+        {
+            return NotFound(new { success = false, message = "Appeal not found" });
+        }
+
+        return Ok(_mapper.Map<AppealSummaryResponse>(appeal));
+    }
+
+    /// <summary>
+    /// GET /api/council-employee/appeals/summary/city/{city}
+    /// Gets appeal summaries by city.
+    /// </summary>
+    [HttpGet("appeals/summary/city/{city}")]
+    [ProducesResponseType(typeof(IEnumerable<AppealSummaryResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAppealSummariesByCity(string city)
+    {
+        if (string.IsNullOrWhiteSpace(city))
+        {
+            return BadRequest(new { success = false, message = "City is required" });
+        }
+
+        await GetCurrentCouncilIdAsync();
+        var appeals = await _appealService.GetAppealsByCityAsync(city);
+        return Ok(_mapper.Map<IEnumerable<AppealSummaryResponse>>(appeals));
+    }
+
+    /// <summary>
+    /// GET /api/council-employee/appeals/summary/oblast/{oblast}
+    /// Gets appeal summaries by oblast.
+    /// </summary>
+    [HttpGet("appeals/summary/oblast/{oblast}")]
+    [ProducesResponseType(typeof(IEnumerable<AppealSummaryResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAppealSummariesByOblast(string oblast)
+    {
+        if (string.IsNullOrWhiteSpace(oblast))
+        {
+            return BadRequest(new { success = false, message = "Oblast is required" });
+        }
+
+        await GetCurrentCouncilIdAsync();
+        var appeals = await _appealService.GetAppealsByOblastAsync(oblast);
+        return Ok(_mapper.Map<IEnumerable<AppealSummaryResponse>>(appeals));
+    }
+
+    /// <summary>
+    /// GET /api/council-employee/appeals/summary/district/{district}
+    /// Gets appeal summaries by district.
+    /// </summary>
+    [HttpGet("appeals/summary/district/{district}")]
+    [ProducesResponseType(typeof(IEnumerable<AppealSummaryResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAppealSummariesByDistrict(string district)
+    {
+        if (string.IsNullOrWhiteSpace(district))
+        {
+            return BadRequest(new { success = false, message = "District is required" });
+        }
+
+        await GetCurrentCouncilIdAsync();
+        var appeals = await _appealService.GetAppealsByDistrictAsync(district);
+        return Ok(_mapper.Map<IEnumerable<AppealSummaryResponse>>(appeals));
     }
 
     #endregion

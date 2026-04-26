@@ -103,6 +103,8 @@ public class AuthenticationService : IAuthenticationService
                 User = userDto,
                 Address = addressDto,
                 CouncilId = createdUser.CouncilEmployee?.CouncilId,
+                CouncilPosition = createdUser.CouncilEmployee?.Position,
+                IsCouncilHead = string.Equals(createdUser.CouncilEmployee?.Position, "Head", StringComparison.OrdinalIgnoreCase),
                 Message = "Registration successful"
             };
         }
@@ -188,6 +190,8 @@ public class AuthenticationService : IAuthenticationService
                 User = userDto,
                 Address = addressDto,
                 CouncilId = user.CouncilEmployee?.CouncilId,
+                CouncilPosition = user.CouncilEmployee?.Position,
+                IsCouncilHead = string.Equals(user.CouncilEmployee?.Position, "Head", StringComparison.OrdinalIgnoreCase),
                 Message = "Login successful"
             };
         }
@@ -280,6 +284,8 @@ public class AuthenticationService : IAuthenticationService
                 User = userDto,
                 Address = addressDto,
                 CouncilId = user.CouncilEmployee?.CouncilId,
+                CouncilPosition = user.CouncilEmployee?.Position,
+                IsCouncilHead = string.Equals(user.CouncilEmployee?.Position, "Head", StringComparison.OrdinalIgnoreCase),
                 Message = "Google authentication successful"
             };
         }
@@ -369,6 +375,8 @@ public class AuthenticationService : IAuthenticationService
                 TokenType = "Bearer",
                 User = userDto,
                 CouncilId = createdUser.CouncilEmployee?.CouncilId,
+                CouncilPosition = createdUser.CouncilEmployee?.Position,
+                IsCouncilHead = string.Equals(createdUser.CouncilEmployee?.Position, "Head", StringComparison.OrdinalIgnoreCase),
                 Message = "Google registration successful"
             };
         }

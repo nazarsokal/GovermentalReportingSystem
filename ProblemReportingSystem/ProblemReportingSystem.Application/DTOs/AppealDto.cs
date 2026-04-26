@@ -8,6 +8,8 @@ public class AppealDto
 
     public string? UserFullName { get; set; }
 
+    public string? AssignedEmployeeFullName { get; set; }
+
     public CreateProblemDto ProblemDto { get; set; }
 
     public Guid? AssignedEmployeeId { get; set; }

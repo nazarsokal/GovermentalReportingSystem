@@ -77,7 +77,26 @@ public class ContractsMappingProfile : Profile
             .ForMember(dest => dest.AppealId, opt => opt.MapFrom(src => src.AppealId))
             .ForMember(dest => dest.DatePublished, opt => opt.MapFrom(src => src.CreatedAt))
             .ForMember(dest => dest.ProblemName, opt => opt.MapFrom(src => src.ProblemDto.Title))
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => "Pending"))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.ProblemDto.Status ?? "Pending"))
             .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.ProblemDto.Description));
+
+        // Council employee dashboard response mapping
+        CreateMap<AppealDto, AppealResponse>()
+            .ForMember(dest => dest.AppealId, opt => opt.MapFrom(src => src.AppealId))
+            .ForMember(dest => dest.ProblemId, opt => opt.MapFrom(_ => Guid.Empty))
+            .ForMember(dest => dest.AssignedEmployeeId, opt => opt.MapFrom(src => src.AssignedEmployeeId))
+            .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt))
+            .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(src => src.UpdatedAt))
+            .ForMember(dest => dest.AssignedEmployeeName, opt => opt.MapFrom(src => src.AssignedEmployeeFullName))
+            .ForMember(dest => dest.Problem, opt => opt.MapFrom(src => src.ProblemDto));
+
+        CreateMap<CreateProblemDto, SummaryProblemResponse>()
+            .ForMember(dest => dest.ProblemId, opt => opt.MapFrom(_ => Guid.Empty))
+            .ForMember(dest => dest.Title, opt => opt.MapFrom(src => src.Title))
+            .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Description))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status))
+            .ForMember(dest => dest.City, opt => opt.MapFrom(src => src.City))
+            .ForMember(dest => dest.Oblast, opt => opt.MapFrom(_ => string.Empty))
+            .ForMember(dest => dest.Street, opt => opt.MapFrom(src => src.Street));
     }
 }

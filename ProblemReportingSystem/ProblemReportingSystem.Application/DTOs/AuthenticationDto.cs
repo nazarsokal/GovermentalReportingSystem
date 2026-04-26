@@ -221,6 +221,16 @@ public class AuthenticationResponseDto
     public Guid? CouncilId { get; set; }
 
     /// <summary>
+    /// Council employee position (Head, Employee, etc.)
+    /// </summary>
+    public string? CouncilPosition { get; set; }
+
+    /// <summary>
+    /// Indicates whether current user is a city council head
+    /// </summary>
+    public bool IsCouncilHead { get; set; }
+
+    /// <summary>
     /// Error message if authentication/registration failed
     /// </summary>
     public string? Message { get; set; }

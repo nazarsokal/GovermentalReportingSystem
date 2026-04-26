@@ -93,12 +93,17 @@ public class DtoMappingProfile : Profile
         // Appeal Mappings
         CreateMap<Appeal, AppealDto>()
             .ForMember(dest => dest.UserFullName, opt => opt.MapFrom(src => src.User.FullName))
+            .ForMember(dest => dest.AssignedEmployeeFullName,
+                opt => opt.MapFrom(src => src.AssignedEmployee != null && src.AssignedEmployee.User != null
+                    ? src.AssignedEmployee.User.FullName
+                    : null))
             .ForMember(dest => dest.ProblemDto, opt => opt.MapFrom(src => new CreateProblemDto
             {
                 UserId = src.UserId,
                 CategoryId = src.Problem.CategoryId,
                 Title = src.Problem.Title,
                 Description = src.Problem.Description,
+                Status = src.Problem.Status,
                 City = src.Problem.Address.City,
                 Street = src.Problem.Address.Street,
                 BuildingNumber = src.Problem.Address.BuildingNumber,

@@ -57,6 +57,8 @@ class AuthService {
         user.role = userRoles[0] || null;
         user.isAdmin = userRoles.includes('Admin');
         user.councilId = data.councilId ?? user.councilId ?? null;
+        user.councilPosition = data.councilPosition ?? user.councilPosition ?? null;
+        user.isCouncilHead = Boolean(data.isCouncilHead);
         console.log('🔐 Roles extracted on register:', userRoles);
 
         // Check if address data is in separate object
@@ -151,6 +153,8 @@ class AuthService {
         user.role = userRoles[0] || null;
         user.isAdmin = userRoles.includes('Admin');
         user.councilId = data.councilId ?? user.councilId ?? null;
+        user.councilPosition = data.councilPosition ?? user.councilPosition ?? null;
+        user.isCouncilHead = Boolean(data.isCouncilHead);
         console.log('🔐 Roles extracted on login:', userRoles);
 
         // Check if address data is in separate object
@@ -343,6 +347,8 @@ class AuthService {
           user.role = userRoles[0] || null;
           user.isAdmin = userRoles.includes('Admin');
           user.councilId = data.councilId ?? user.councilId ?? null;
+          user.councilPosition = data.councilPosition ?? user.councilPosition ?? null;
+          user.isCouncilHead = Boolean(data.isCouncilHead);
           localStorage.setItem('councilId', user.councilId ?? '');
           localStorage.setItem('user', JSON.stringify(user));
         }

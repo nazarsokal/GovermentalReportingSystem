@@ -72,6 +72,20 @@ class ApiService {
     return response.json();
   }
 
+  // PATCH request
+  static async patch(url, data) {
+    const response = await this.makeRequest(url, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
   // DELETE request
   static async delete(url) {
     const response = await this.makeRequest(url, {

@@ -17,7 +17,10 @@
   flex-direction: column;
   gap: 12px;
   flex: 1;
+  min-height: 180px;
+  max-height: clamp(260px, 46vh, 560px);
   overflow-y: auto;
+  padding-right: 6px; /* keep content away from scrollbar */
 }
 
 .appeals-list::-webkit-scrollbar {

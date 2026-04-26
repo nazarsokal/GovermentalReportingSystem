@@ -17,21 +17,26 @@ function CouncilDashboard() {
         console.error("Помилка парсингу користувача з localStorage:", e);
     }
 
-    const isHead = user?.role === 'CouncilHead' || user?.role === 'Head';
+    const isHead = user?.isCouncilHead === true || user?.councilPosition === 'Head';
     const councilId = user?.councilId || localStorage.getItem('councilId');
+    const localCouncilName = user?.councilName || localStorage.getItem('councilName');
 
     const [activeTab, setActiveTab] = useState('appeals');
 
     // Стан
     const [appeals, setAppeals] = useState([]);
+    const [myAppeals, setMyAppeals] = useState([]);
     const [summary, setSummary] = useState({ total: 0, pending: 0, resolved: 0, avgResolution: 0 });
     const [distributionData, setDistributionData] = useState([]);
     const [trendData, setTrendData] = useState([]);
+    const [councilName, setCouncilName] = useState(localCouncilName || '');
+    const [employees, setEmployees] = useState([]);
+    const [selectedEmployeeByAppeal, setSelectedEmployeeByAppeal] = useState({});
     const [loading, setLoading] = useState(true);
 
     // Стан модалки
     const [showRegisterModal, setShowRegisterModal] = useState(false);
-    const [employeeForm, setEmployeeForm] = useState({ fullName: '', email: '', password: '', role: 'CouncilEmployee', councilId: councilId });
+    const [employeeForm, setEmployeeForm] = useState({ fullName: '', email: '', password: '', position: '', role: 'CouncilEmployee', councilId: councilId });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
@@ -50,7 +55,12 @@ function CouncilDashboard() {
             const appealsResult = await CouncilService.getCouncilAppeals(councilId);
             if (appealsResult.success) setAppeals(appealsResult.data || []);
 
-            const statsResult = await CouncilService.getCouncilStats(councilId);
+            if (!isHead) {
+                const myResult = await CouncilService.getMyAppeals();
+                if (myResult.success) setMyAppeals(myResult.data || []);
+            }
+
+            const statsResult = await CouncilService.getCouncilStats();
             if (statsResult.success && statsResult.data) {
                 setSummary({
                     total: statsResult.data.totalAppeals || (appealsResult.data?.length || 0),
@@ -60,7 +70,17 @@ function CouncilDashboard() {
                 });
             }
 
+            const efficiencyResult = await CouncilService.getCouncilEfficiency();
+            const nameFromApi = efficiencyResult?.data?.councilName || efficiencyResult?.data?.CouncilName;
+            if (efficiencyResult.success && nameFromApi) {
+                setCouncilName(nameFromApi);
+                localStorage.setItem('councilName', nameFromApi);
+            }
+
             if (isHead) {
+                const employeesResult = await CouncilService.getCouncilEmployees();
+                if (employeesResult.success) setEmployees(employeesResult.data || []);
+
                 const distResult = await CouncilService.getStatusDistribution(councilId);
                 if (distResult.success && distResult.data) {
                     const formattedDist = Object.keys(distResult.data).map(key => ({
@@ -79,13 +99,39 @@ function CouncilDashboard() {
         setLoading(false);
     };
 
+    const handleAssignEmployee = async (appealId) => {
+        const employeeId = selectedEmployeeByAppeal[appealId];
+        if (!employeeId) {
+            alert('Оберіть працівника для призначення.');
+            return;
+        }
+
+        const result = await CouncilService.assignAppeal(appealId, employeeId);
+        if (!result.success) {
+            alert(result.errors?.[0] || 'Не вдалося призначити працівника.');
+            return;
+        }
+
+        await fetchDashboardData();
+    };
+
+    const handleStatusChange = async (appealId, status) => {
+        const result = await CouncilService.updateAppealStatus(appealId, status);
+        if (!result.success) {
+            alert(result.errors?.[0] || 'Не вдалося змінити статус.');
+            return;
+        }
+
+        await fetchDashboardData();
+    };
+
     const handleRegisterEmployee = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
         const result = await CouncilService.registerEmployee(employeeForm);
         if (result.success) {
             setShowRegisterModal(false);
-            setEmployeeForm({ fullName: '', email: '', password: '', role: 'CouncilEmployee', councilId: councilId });
+            setEmployeeForm({ fullName: '', email: '', password: '', position: '', role: 'CouncilEmployee', councilId: councilId });
             alert('Працівника успішно зареєстровано!');
         } else {
             alert(result.errors?.[0] || 'Помилка реєстрації працівника.');
@@ -96,8 +142,10 @@ function CouncilDashboard() {
     // 2. БЕЗПЕЧНА ФІЛЬТРАЦІЯ: Запобігаємо крашу, якщо appeals === null/undefined
     const safeAppeals = appeals || [];
     const pending = safeAppeals.filter(a => a.status === 'Pending' || a.status === 0);
-    const inProgress = safeAppeals.filter(a => a.status === 'InProgress' || a.status === 1);
+    const inProgress = safeAppeals.filter(a => a.status === 'In Progress' || a.status === 'InProgress' || a.status === 1);
     const resolved = safeAppeals.filter(a => a.status === 'Resolved' || a.status === 2);
+
+    const safeMyAppeals = myAppeals || [];
 
     // 3. Якщо немає ID ради, показуємо чітке повідомлення
     if (!councilId) {
@@ -115,8 +163,7 @@ function CouncilDashboard() {
         <div className="council-dashboard-wrapper">
             <div className="council-header-container">
                 <div>
-                    <h1 className="council-title">City Council Dashboard</h1>
-                    <p className="council-subtitle">Manage citizen appeals, create polls, and track efficiency metrics</p>
+                    <h1 className="council-title">{councilName || 'Міська рада'}</h1>
                 </div>
                 {isHead && (
                     <button className="btn-add-employee" onClick={() => setShowRegisterModal(true)}>
@@ -143,13 +190,16 @@ function CouncilDashboard() {
                 </div>
                 <div className="stat-card">
                     <div className="stat-card-header"><span className="stat-title">Сер. час вирішення</span><span className="stat-icon purple">📈</span></div>
-                    <div className="stat-value">{summary.avgResolution}</div>
+                    <div className="stat-value">{Number(summary.avgResolution || 0).toFixed(2)}</div>
                     <div className="stat-subtext green-text">Днів</div>
                 </div>
             </div>
 
             <div className="council-tabs">
                 <button className={`council-tab ${activeTab === 'appeals' ? 'active' : ''}`} onClick={() => setActiveTab('appeals')}>Звернення</button>
+                {!isHead && (
+                    <button className={`council-tab ${activeTab === 'myTasks' ? 'active' : ''}`} onClick={() => setActiveTab('myTasks')}>Мої задачі</button>
+                )}
                 <button className={`council-tab ${activeTab === 'polls' ? 'active' : ''}`} onClick={() => setActiveTab('polls')}>Опитування</button>
                 {isHead && (
                     <button className={`council-tab ${activeTab === 'efficiency' ? 'active' : ''}`} onClick={() => setActiveTab('efficiency')}>Аналітика відділу</button>
@@ -178,8 +228,39 @@ function CouncilDashboard() {
                                                     <h4>{appeal.title || appeal.category || 'Звернення'}</h4>
                                                     <span className="card-date">{new Date(appeal.createdAt).toLocaleDateString()}</span>
                                                 </div>
+                                                {appeal.assignedEmployeeName && (
+                                                    <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>
+                                                        Виконавець: <b>{appeal.assignedEmployeeName}</b>
+                                                    </div>
+                                                )}
                                                 <p className="card-address">{appeal.address}</p>
                                                 <p className="card-desc">{appeal.description}</p>
+
+                                                {isHead && (
+                                                    <div style={{ marginTop: '10px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                        <select
+                                                            value={selectedEmployeeByAppeal[appeal.appealId] || ''}
+                                                            onChange={(e) => setSelectedEmployeeByAppeal(prev => ({ ...prev, [appeal.appealId]: e.target.value }))}
+                                                            style={{ padding: '8px', borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                                                        >
+                                                            <option value="">Призначити працівника…</option>
+                                                            {employees.map(emp => (
+                                                                <option key={emp.employeeId} value={emp.employeeId}>
+                                                                    {(emp.fullName || emp.email || 'Працівник')} {emp.position ? `(${emp.position})` : ''}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        <button className="btn-primary" type="button" onClick={() => handleAssignEmployee(appeal.appealId)} style={{ padding: '8px 12px' }}>
+                                                            Призначити
+                                                        </button>
+                                                        <button className="btn-secondary" type="button" onClick={() => handleStatusChange(appeal.appealId, 'In Progress')} style={{ padding: '8px 12px' }}>
+                                                            В роботу
+                                                        </button>
+                                                        <button className="btn-secondary" type="button" onClick={() => handleStatusChange(appeal.appealId, 'Resolved')} style={{ padding: '8px 12px' }}>
+                                                            Вирішено
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
@@ -194,8 +275,39 @@ function CouncilDashboard() {
                                                     <h4>{appeal.title || appeal.category || 'Звернення'}</h4>
                                                     <span className="card-date">{new Date(appeal.createdAt).toLocaleDateString()}</span>
                                                 </div>
+                                                {appeal.assignedEmployeeName && (
+                                                    <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>
+                                                        Виконавець: <b>{appeal.assignedEmployeeName}</b>
+                                                    </div>
+                                                )}
                                                 <p className="card-address">{appeal.address}</p>
                                                 <p className="card-desc">{appeal.description}</p>
+
+                                                {isHead && (
+                                                    <div style={{ marginTop: '10px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                        <select
+                                                            value={selectedEmployeeByAppeal[appeal.appealId] || ''}
+                                                            onChange={(e) => setSelectedEmployeeByAppeal(prev => ({ ...prev, [appeal.appealId]: e.target.value }))}
+                                                            style={{ padding: '8px', borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                                                        >
+                                                            <option value="">Перепризначити…</option>
+                                                            {employees.map(emp => (
+                                                                <option key={emp.employeeId} value={emp.employeeId}>
+                                                                    {(emp.fullName || emp.email || 'Працівник')} {emp.position ? `(${emp.position})` : ''}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        <button className="btn-primary" type="button" onClick={() => handleAssignEmployee(appeal.appealId)} style={{ padding: '8px 12px' }}>
+                                                            Зберегти
+                                                        </button>
+                                                        <button className="btn-secondary" type="button" onClick={() => handleStatusChange(appeal.appealId, 'Pending')} style={{ padding: '8px 12px' }}>
+                                                            В Pending
+                                                        </button>
+                                                        <button className="btn-secondary" type="button" onClick={() => handleStatusChange(appeal.appealId, 'Resolved')} style={{ padding: '8px 12px' }}>
+                                                            Вирішено
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
@@ -210,13 +322,113 @@ function CouncilDashboard() {
                                                     <h4>{appeal.title || appeal.category || 'Звернення'}</h4>
                                                     <span className="card-date">{new Date(appeal.resolvedAt || appeal.updatedAt).toLocaleDateString()}</span>
                                                 </div>
+                                                {appeal.assignedEmployeeName && (
+                                                    <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>
+                                                        Виконавець: <b>{appeal.assignedEmployeeName}</b>
+                                                    </div>
+                                                )}
                                                 <p className="card-address">{appeal.address}</p>
                                                 <p className="card-desc">{appeal.description}</p>
+
+                                                {isHead && (
+                                                    <div style={{ marginTop: '10px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                        <button className="btn-secondary" type="button" onClick={() => handleStatusChange(appeal.appealId, 'In Progress')} style={{ padding: '8px 12px' }}>
+                                                            Повернути в роботу
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* TAB: My Tasks (Employees) */}
+                    {activeTab === 'myTasks' && !isHead && (
+                        <div className="kanban-section">
+                            <div className="kanban-header">
+                                <h2>Мої задачі</h2>
+                                <p>Звернення, які призначені саме вам</p>
+                            </div>
+
+                            {safeMyAppeals.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '60px', color: '#6b7280', fontSize: '16px' }}>
+                                    Наразі немає призначених задач.
+                                </div>
+                            ) : (
+                                <div className="kanban-board">
+                                    <div className="kanban-column">
+                                        <div className="column-header"><h3>Pending</h3><span className="badge badge-pending">{safeMyAppeals.filter(a => a.status === 'Pending' || a.status === 0).length}</span></div>
+                                        <div className="column-body">
+                                            {safeMyAppeals.filter(a => a.status === 'Pending' || a.status === 0).map(appeal => (
+                                                <div key={appeal.id} className="kanban-card">
+                                                    <div className="card-top">
+                                                        <h4>{appeal.title || 'Звернення'}</h4>
+                                                        <span className="card-date">{new Date(appeal.createdAt).toLocaleDateString()}</span>
+                                                    </div>
+                                                    <p className="card-address">{appeal.address}</p>
+                                                    <p className="card-desc">{appeal.description}</p>
+                                                    <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                                        <button className="btn-secondary" type="button" onClick={() => handleStatusChange(appeal.appealId, 'In Progress')} style={{ padding: '8px 12px' }}>
+                                                            В роботу
+                                                        </button>
+                                                        <button className="btn-secondary" type="button" onClick={() => handleStatusChange(appeal.appealId, 'Resolved')} style={{ padding: '8px 12px' }}>
+                                                            Вирішено
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="kanban-column">
+                                        <div className="column-header"><h3>In Progress</h3><span className="badge badge-progress">{safeMyAppeals.filter(a => a.status === 'In Progress' || a.status === 'InProgress' || a.status === 1).length}</span></div>
+                                        <div className="column-body">
+                                            {safeMyAppeals.filter(a => a.status === 'In Progress' || a.status === 'InProgress' || a.status === 1).map(appeal => (
+                                                <div key={appeal.id} className="kanban-card">
+                                                    <div className="card-top">
+                                                        <h4>{appeal.title || 'Звернення'}</h4>
+                                                        <span className="card-date">{new Date(appeal.createdAt).toLocaleDateString()}</span>
+                                                    </div>
+                                                    <p className="card-address">{appeal.address}</p>
+                                                    <p className="card-desc">{appeal.description}</p>
+                                                    <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                                        <button className="btn-secondary" type="button" onClick={() => handleStatusChange(appeal.appealId, 'Pending')} style={{ padding: '8px 12px' }}>
+                                                            В Pending
+                                                        </button>
+                                                        <button className="btn-secondary" type="button" onClick={() => handleStatusChange(appeal.appealId, 'Resolved')} style={{ padding: '8px 12px' }}>
+                                                            Вирішено
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="kanban-column">
+                                        <div className="column-header"><h3>Resolved</h3><span className="badge badge-resolved">{safeMyAppeals.filter(a => a.status === 'Resolved' || a.status === 2).length}</span></div>
+                                        <div className="column-body">
+                                            {safeMyAppeals.filter(a => a.status === 'Resolved' || a.status === 2).map(appeal => (
+                                                <div key={appeal.id} className="kanban-card">
+                                                    <div className="card-top">
+                                                        <h4>{appeal.title || 'Звернення'}</h4>
+                                                        <span className="card-date">{new Date(appeal.updatedAt).toLocaleDateString()}</span>
+                                                    </div>
+                                                    <p className="card-address">{appeal.address}</p>
+                                                    <p className="card-desc">{appeal.description}</p>
+                                                    <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                                        <button className="btn-secondary" type="button" onClick={() => handleStatusChange(appeal.appealId, 'In Progress')} style={{ padding: '8px 12px' }}>
+                                                            Повернути в роботу
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -277,6 +489,7 @@ function CouncilDashboard() {
                         <form onSubmit={handleRegisterEmployee}>
                             <div className="form-group"><label>ПІБ</label><input type="text" required value={employeeForm.fullName} onChange={e => setEmployeeForm({...employeeForm, fullName: e.target.value})} /></div>
                             <div className="form-group"><label>Службовий Email</label><input type="email" required value={employeeForm.email} onChange={e => setEmployeeForm({...employeeForm, email: e.target.value})} /></div>
+                            <div className="form-group"><label>Посада</label><input type="text" required value={employeeForm.position} onChange={e => setEmployeeForm({...employeeForm, position: e.target.value})} /></div>
                             <div className="form-group"><label>Тимчасовий пароль</label><input type="password" required value={employeeForm.password} onChange={e => setEmployeeForm({...employeeForm, password: e.target.value})} /></div>
                             <div className="modal-actions">
                                 <button type="button" className="btn-secondary" onClick={() => setShowRegisterModal(false)}>Скасувати</button>

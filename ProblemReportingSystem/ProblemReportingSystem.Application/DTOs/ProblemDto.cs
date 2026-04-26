@@ -30,6 +30,8 @@ public class CreateProblemDto
     public string Title { get; set; } = null!;
 
     public string Description { get; set; } = null!;
+
+    public string? Status { get; set; }
     
     public string? City { get; set; }
     public string? Street { get; set; }
