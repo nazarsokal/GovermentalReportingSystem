@@ -71,6 +71,21 @@ public class AppealRepository : ProblemReportingSystemRepository<Appeal>, IAppea
         return appeals;
     }
 
+    public async Task<IEnumerable<Appeal>> GetAppealsInBoundsAsync(decimal minLat, decimal maxLat, decimal minLng, decimal maxLng)
+    {
+        return await _context.Appeals
+            .Include(a => a.Problem)
+            .ThenInclude(p => p.Address)
+            .Include(a => a.User)
+            .Where(a => a.Problem != null &&
+                        a.Problem.Address != null &&
+                        a.Problem.Address.Latitude >= minLat &&
+                        a.Problem.Address.Latitude <= maxLat &&
+                        a.Problem.Address.Longitude >= minLng &&
+                        a.Problem.Address.Longitude <= maxLng)
+            .ToListAsync();
+    }
+
     public async Task<IEnumerable<Appeal>> GetAppealsByCityAsync(string city)
     {
         var appeals = await _context.Appeals

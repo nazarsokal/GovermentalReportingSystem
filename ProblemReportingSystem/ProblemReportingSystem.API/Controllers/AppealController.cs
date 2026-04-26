@@ -441,6 +441,86 @@ public class AppealController : ControllerBase
     }
 
     /// <summary>
+    /// Retrieves appeals for map display within current map bounds.
+    /// This endpoint should be used by map clients on move/zoom events.
+    /// </summary>
+    /// <param name="request">Geographic bounds of current map viewport</param>
+    /// <returns>List of appeals with map information</returns>
+    /// <response code="200">Appeals retrieved successfully</response>
+    /// <response code="400">Invalid bounds provided</response>
+    /// <response code="500">Server error occurred</response>
+    [HttpGet("map/in-bounds")]
+    [ProducesResponseType(typeof(IEnumerable<SummaryAppealForMapResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetAppealsForMapInBounds([FromQuery] GetProblemsInBoundsRequest request)
+    {
+        if (request == null)
+        {
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "Bounds request cannot be null"
+            });
+        }
+
+        if (request.MinLatitude > request.MaxLatitude || request.MinLongitude > request.MaxLongitude)
+        {
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "Invalid geographic bounds: min values cannot exceed max values"
+            });
+        }
+
+        try
+        {
+            _logger.LogInformation(
+                "Retrieving appeals for map bounds: lat {MinLat}..{MaxLat}, lng {MinLng}..{MaxLng}",
+                request.MinLatitude,
+                request.MaxLatitude,
+                request.MinLongitude,
+                request.MaxLongitude);
+
+            var appeals = await _appealService.GetAppealsInBoundsAsync(
+                request.MinLatitude,
+                request.MaxLatitude,
+                request.MinLongitude,
+                request.MaxLongitude);
+
+            var mappedAppeals = _mapper.Map<IEnumerable<SummaryAppealForMapResponse>>(appeals).ToList();
+
+            foreach (var appeal in mappedAppeals)
+            {
+                if (Guid.TryParse(appeal.CategoryIconUrl, out var categoryId))
+                {
+                    try
+                    {
+                        var category = await _categoryService.GetCategoryByIdAsync(categoryId);
+                        appeal.CategoryIconUrl = category?.IconUrl ?? string.Empty;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning($"Failed to fetch category icon for {categoryId}: {ex.Message}");
+                        appeal.CategoryIconUrl = string.Empty;
+                    }
+                }
+            }
+
+            return Ok(mappedAppeals);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving appeals for map bounds");
+            return StatusCode(StatusCodes.Status500InternalServerError, new ErrorResponse
+            {
+                Success = false,
+                Message = "An error occurred while retrieving appeals for map display"
+            });
+        }
+    }
+
+    /// <summary>
     /// Helper method to get category icon URL.
     /// In a real implementation, this should fetch from database through a service.
     /// </summary>

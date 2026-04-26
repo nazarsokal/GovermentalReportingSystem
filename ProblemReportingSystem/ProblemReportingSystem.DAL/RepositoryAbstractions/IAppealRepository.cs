@@ -10,6 +10,7 @@ public interface IAppealRepository : IProblemReportingSystemRepository<Appeal>
 
     Task<IEnumerable<Appeal>> GetAppealsByStatusAsync(Guid councilId, string status);
     Task<IEnumerable<Appeal>> GetAppealsByDistrictAsync(string district);
+    Task<IEnumerable<Appeal>> GetAppealsInBoundsAsync(decimal minLat, decimal maxLat, decimal minLng, decimal maxLng);
 
     Task<IEnumerable<Appeal>> GetAppealsByCityAsync(string city);
 

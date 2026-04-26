@@ -27,8 +27,8 @@ function CityMap({ user, onViewDetails }) {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const mapRef = useRef(null);
   const appealsFetchedRef = useRef(false);
-  const fetchedDistrictsRef = useRef(new Set());
   const centerSetRef = useRef(false);
+  const lastBoundsRequestRef = useRef(null);
 
   useEffect(() => {
     if (centerSetRef.current || !districtCoordinates || Object.keys(districtCoordinates).length === 0) {
@@ -62,52 +62,64 @@ function CityMap({ user, onViewDetails }) {
     fetchCoordinates();
   }, []);
 
-  const isDistrictVisible = (districtCoord, bounds) => {
-    if (!bounds || !districtCoord) return false;
-    return bounds.contains(new window.google.maps.LatLng(districtCoord.lat, districtCoord.lng));
+  const getCurrentBoundsRequest = () => {
+    if (!mapRef.current) return null;
+    const bounds = mapRef.current.getBounds();
+    if (!bounds) return null;
+
+    const northEast = bounds.getNorthEast();
+    const southWest = bounds.getSouthWest();
+
+    return {
+      minLatitude: southWest.lat(),
+      maxLatitude: northEast.lat(),
+      minLongitude: southWest.lng(),
+      maxLongitude: northEast.lng()
+    };
   };
 
-  const getVisibleDistricts = () => {
-    if (!mapRef.current || !districtCoordinates || Object.keys(districtCoordinates).length === 0) return [];
-    const bounds = mapRef.current.getBounds();
-    if (!bounds) return [];
-    return Object.keys(districtCoordinates).filter(districtName => isDistrictVisible(districtCoordinates[districtName], bounds));
+  const areBoundsEqual = (left, right, epsilon = 0.0001) => {
+    if (!left || !right) return false;
+
+    return Math.abs(left.minLatitude - right.minLatitude) < epsilon &&
+      Math.abs(left.maxLatitude - right.maxLatitude) < epsilon &&
+      Math.abs(left.minLongitude - right.minLongitude) < epsilon &&
+      Math.abs(left.maxLongitude - right.maxLongitude) < epsilon;
+  };
+
+  const fetchAppealsForCurrentBounds = async (force = false) => {
+    const requestBounds = getCurrentBoundsRequest();
+    if (!requestBounds) return;
+
+    if (!force && areBoundsEqual(requestBounds, lastBoundsRequestRef.current)) {
+      return;
+    }
+
+    setAppealsLoading(true);
+    const result = await AppealService.getAppealLocationsInBounds(requestBounds);
+
+    if (result.success) {
+      setAppeals(result.appeals);
+      setAppealsError(null);
+      lastBoundsRequestRef.current = requestBounds;
+    } else {
+      setAppealsError(result.errors?.[0] || 'Failed to load appeals');
+    }
+
+    setAppealsLoading(false);
   };
 
   useEffect(() => {
     if (!mapLoaded || Object.keys(districtCoordinates).length === 0) return;
 
-    const fetchAppealsForVisibleDistricts = async () => {
-      const visibleDistricts = getVisibleDistricts();
-      if (visibleDistricts.length === 0) {
-        // Keep existing markers during transient map states (e.g. while bounds are recalculating)
-        return;
-      }
-
-      const newDistricts = visibleDistricts.filter(district => !fetchedDistrictsRef.current.has(district));
-      if (newDistricts.length === 0) return;
-
-      setAppealsLoading(true);
-      newDistricts.forEach(district => fetchedDistrictsRef.current.add(district));
-
-      const result = await AppealService.getAppealLocationsFromMultipleDistricts(visibleDistricts);
-      if (result.success) {
-        setAppeals(result.appeals);
-        setAppealsError(null);
-      } else {
-        setAppealsError(result.errors?.[0] || 'Failed to load appeals');
-      }
-      setAppealsLoading(false);
-    };
-
     if (!appealsFetchedRef.current) {
-      fetchAppealsForVisibleDistricts();
+      fetchAppealsForCurrentBounds(true);
       appealsFetchedRef.current = true;
     }
   }, [mapLoaded, districtCoordinates]);
 
   const handleMapMove = () => {
-    if (!mapRef.current || !districtCoordinates || Object.keys(districtCoordinates).length === 0) return;
+    if (!mapRef.current) return;
 
     const currentCenter = mapRef.current.getCenter();
     if (currentCenter) {
@@ -117,25 +129,7 @@ function CityMap({ user, onViewDetails }) {
       });
     }
 
-    const visibleDistricts = getVisibleDistricts();
-    if (visibleDistricts.length === 0) return;
-    const newDistricts = visibleDistricts.filter(district => !fetchedDistrictsRef.current.has(district));
-
-    if (newDistricts.length > 0) {
-      const fetchNewAppeals = async () => {
-        setAppealsLoading(true);
-        newDistricts.forEach(district => fetchedDistrictsRef.current.add(district));
-        const result = await AppealService.getAppealLocationsFromMultipleDistricts(visibleDistricts);
-        if (result.success) {
-          setAppeals(result.appeals);
-          setAppealsError(null);
-        } else {
-          setAppealsError(result.errors?.[0] || 'Failed to load appeals');
-        }
-        setAppealsLoading(false);
-      };
-      fetchNewAppeals();
-    }
+    fetchAppealsForCurrentBounds();
   };
 
   const mapOptions = {

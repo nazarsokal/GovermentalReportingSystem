@@ -68,6 +68,17 @@ public class AppealService : IAppealService
         return appealDtos;
     }
 
+    public async Task<IEnumerable<AppealDto>> GetAppealsInBoundsAsync(decimal minLat, decimal maxLat, decimal minLng, decimal maxLng)
+    {
+        if (minLat > maxLat)
+            throw new ArgumentException("Minimum latitude cannot be greater than maximum latitude", nameof(minLat));
+        if (minLng > maxLng)
+            throw new ArgumentException("Minimum longitude cannot be greater than maximum longitude", nameof(minLng));
+
+        var appeals = await _appealRepository.GetAppealsInBoundsAsync(minLat, maxLat, minLng, maxLng);
+        return _mapper.Map<IEnumerable<AppealDto>>(appeals);
+    }
+
     public async Task<IEnumerable<AppealDto>> GetAppealsByCityAsync(string city)
     {
         if (string.IsNullOrWhiteSpace(city))

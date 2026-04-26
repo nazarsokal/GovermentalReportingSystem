@@ -25,6 +25,35 @@ class AppealService {
     }
   }
 
+  static async getAppealLocationsInBounds(bounds) {
+    try {
+      if (!bounds) {
+        return { success: true, appeals: [], errors: [] };
+      }
+
+      const {
+        minLatitude,
+        maxLatitude,
+        minLongitude,
+        maxLongitude
+      } = bounds;
+
+      const query = new URLSearchParams({
+        MinLatitude: String(minLatitude),
+        MaxLatitude: String(maxLatitude),
+        MinLongitude: String(minLongitude),
+        MaxLongitude: String(maxLongitude)
+      }).toString();
+
+      const appeals = await ApiService.get(`/api/Appeal/map/in-bounds?${query}`);
+      const transformedAppeals = (appeals || []).map(appeal => this.transformAppealToCamelCase(appeal));
+      return { success: true, appeals: transformedAppeals, errors: [] };
+    } catch (error) {
+      console.error('Failed to fetch appeal locations in bounds:', error);
+      return { success: false, appeals: [], errors: [error.message || 'Failed to fetch appeal locations in bounds'] };
+    }
+  }
+
   static transformAppealToCamelCase(appeal) {
     return {
       appealId: appeal.AppealId || appeal.appealId,

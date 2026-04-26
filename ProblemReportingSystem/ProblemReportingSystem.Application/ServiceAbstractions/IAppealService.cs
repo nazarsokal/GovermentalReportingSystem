@@ -11,6 +11,7 @@ public interface IAppealService
     Task<AppealDto?> GetAppealByIdAsync(Guid appealId);
     Task<IEnumerable<AppealDto>> GetAllAppealsAsync();
     Task<IEnumerable<AppealDto>> GetAppealsByDistrictAsync(string distinct);
+    Task<IEnumerable<AppealDto>> GetAppealsInBoundsAsync(decimal minLat, decimal maxLat, decimal minLng, decimal maxLng);
     Task<IEnumerable<AppealDto>> GetAppealsByCityAsync(string city);
     Task<IEnumerable<AppealDto>> GetAppealsByOblastAsync(string oblast);
     Task<IEnumerable<AppealDto>> GetCouncilAppealsByEmployeeAsync(Guid employeeId);
