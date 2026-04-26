@@ -50,7 +50,7 @@ public class AuthController : ControllerBase
 
         var result = await _authenticationService.RegisterAsync(registerDto, cancellationToken);
 
-        // if (!result.Success)
+        if (!result.Success)
         {
             _logger.LogWarning($"Registration failed for email: {registerDto.Email}");
             return BadRequest(result);

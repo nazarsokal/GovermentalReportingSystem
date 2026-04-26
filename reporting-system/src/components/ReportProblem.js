@@ -60,8 +60,28 @@ function ReportProblem({ user, onSuccess }) {
     };
 
     const handleFileChange = (e) => {
-        const files = Array.from(e.target.files);
-        setFormData(prev => ({ ...prev, photos: files }));
+        const newFiles = Array.from(e.target.files || []);
+        setFormData(prev => {
+            const existing = prev.photos || [];
+            const merged = [...existing, ...newFiles];
+            const unique = merged.filter((file, index, arr) =>
+                index === arr.findIndex(f =>
+                    f.name === file.name &&
+                    f.size === file.size &&
+                    f.lastModified === file.lastModified
+                )
+            );
+            return { ...prev, photos: unique };
+        });
+        // Allow selecting the same file again if user removed it
+        e.target.value = '';
+    };
+
+    const handleRemovePhoto = (indexToRemove) => {
+        setFormData(prev => ({
+            ...prev,
+            photos: (prev.photos || []).filter((_, idx) => idx !== indexToRemove)
+        }));
     };
 
     // --- GOOGLE MAPS LOGIC ---
@@ -225,7 +245,31 @@ function ReportProblem({ user, onSuccess }) {
 
                     <div className="report-field report-field-full">
                         <label className="report-label">Photos (Optional)</label>
-                        <input className="report-file" type="file" multiple accept="image/*" onChange={handleFileChange} />
+                        <input
+                            className="report-file"
+                            type="file"
+                            name="Photos"
+                            multiple
+                            accept="image/*"
+                            onChange={handleFileChange}
+                        />
+                        {formData.photos?.length > 0 && (
+                            <div className="report-photos-list">
+                                <div className="report-photos-title">Attached: {formData.photos.length}</div>
+                                {formData.photos.map((photo, index) => (
+                                    <div key={`${photo.name}-${photo.size}-${index}`} className="report-photo-item">
+                                        <span className="report-photo-name">{photo.name}</span>
+                                        <button
+                                            type="button"
+                                            className="report-photo-remove"
+                                            onClick={() => handleRemovePhoto(index)}
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
 

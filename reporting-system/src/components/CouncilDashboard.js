@@ -125,6 +125,13 @@ function CouncilDashboard() {
         await fetchDashboardData();
     };
 
+    const getAssignedEmployeeDisplayName = (appeal) => {
+        if (appeal?.assignedEmployeeName) return appeal.assignedEmployeeName;
+        if (!appeal?.assignedEmployeeId) return '';
+        const found = employees.find(emp => emp.employeeId === appeal.assignedEmployeeId);
+        return found?.fullName || found?.email || '';
+    };
+
     const handleRegisterEmployee = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -228,9 +235,9 @@ function CouncilDashboard() {
                                                     <h4>{appeal.title || appeal.category || 'Звернення'}</h4>
                                                     <span className="card-date">{new Date(appeal.createdAt).toLocaleDateString()}</span>
                                                 </div>
-                                                {appeal.assignedEmployeeName && (
+                                                {getAssignedEmployeeDisplayName(appeal) && (
                                                     <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>
-                                                        Виконавець: <b>{appeal.assignedEmployeeName}</b>
+                                                        Виконавець: <b>{getAssignedEmployeeDisplayName(appeal)}</b>
                                                     </div>
                                                 )}
                                                 <p className="card-address">{appeal.address}</p>
@@ -243,7 +250,11 @@ function CouncilDashboard() {
                                                             onChange={(e) => setSelectedEmployeeByAppeal(prev => ({ ...prev, [appeal.appealId]: e.target.value }))}
                                                             style={{ padding: '8px', borderRadius: '8px', border: '1px solid #e5e7eb' }}
                                                         >
-                                                            <option value="">Призначити працівника…</option>
+                                                            <option value="">
+                                                                {getAssignedEmployeeDisplayName(appeal)
+                                                                    ? `Поточний: ${getAssignedEmployeeDisplayName(appeal)}`
+                                                                    : 'Призначити працівника…'}
+                                                            </option>
                                                             {employees.map(emp => (
                                                                 <option key={emp.employeeId} value={emp.employeeId}>
                                                                     {(emp.fullName || emp.email || 'Працівник')} {emp.position ? `(${emp.position})` : ''}
@@ -275,9 +286,9 @@ function CouncilDashboard() {
                                                     <h4>{appeal.title || appeal.category || 'Звернення'}</h4>
                                                     <span className="card-date">{new Date(appeal.createdAt).toLocaleDateString()}</span>
                                                 </div>
-                                                {appeal.assignedEmployeeName && (
+                                                {getAssignedEmployeeDisplayName(appeal) && (
                                                     <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>
-                                                        Виконавець: <b>{appeal.assignedEmployeeName}</b>
+                                                        Виконавець: <b>{getAssignedEmployeeDisplayName(appeal)}</b>
                                                     </div>
                                                 )}
                                                 <p className="card-address">{appeal.address}</p>
@@ -290,7 +301,11 @@ function CouncilDashboard() {
                                                             onChange={(e) => setSelectedEmployeeByAppeal(prev => ({ ...prev, [appeal.appealId]: e.target.value }))}
                                                             style={{ padding: '8px', borderRadius: '8px', border: '1px solid #e5e7eb' }}
                                                         >
-                                                            <option value="">Перепризначити…</option>
+                                                            <option value="">
+                                                                {getAssignedEmployeeDisplayName(appeal)
+                                                                    ? `Поточний: ${getAssignedEmployeeDisplayName(appeal)}`
+                                                                    : 'Перепризначити…'}
+                                                            </option>
                                                             {employees.map(emp => (
                                                                 <option key={emp.employeeId} value={emp.employeeId}>
                                                                     {(emp.fullName || emp.email || 'Працівник')} {emp.position ? `(${emp.position})` : ''}
@@ -322,9 +337,9 @@ function CouncilDashboard() {
                                                     <h4>{appeal.title || appeal.category || 'Звернення'}</h4>
                                                     <span className="card-date">{new Date(appeal.resolvedAt || appeal.updatedAt).toLocaleDateString()}</span>
                                                 </div>
-                                                {appeal.assignedEmployeeName && (
+                                                {getAssignedEmployeeDisplayName(appeal) && (
                                                     <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>
-                                                        Виконавець: <b>{appeal.assignedEmployeeName}</b>
+                                                        Виконавець: <b>{getAssignedEmployeeDisplayName(appeal)}</b>
                                                     </div>
                                                 )}
                                                 <p className="card-address">{appeal.address}</p>

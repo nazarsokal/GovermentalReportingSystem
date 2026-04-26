@@ -9,6 +9,7 @@ import ReportProblem from '../components/ReportProblem';
 import AppealDetails from '../components/AppealDetails';
 import AdminDashboard from '../components/AdminDashboard';
 import CouncilDashboard from '../components/CouncilDashboard'; // <-- ДОДАНО ІМПОРТ
+import AnalyticsReports from '../components/AnalyticsReports';
 
 function DashboardPage({ user, onLogout }) {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -26,7 +27,11 @@ function DashboardPage({ user, onLogout }) {
   const [filterValue, setFilterValue] = useState(initial.value);
   const [stats, setStats] = useState({ total: 0, pending: 0, inProgress: 0, resolved: 0 });
   const [recentAppeals, setRecentAppeals] = useState([]);
+  const [analyticsAppeals, setAnalyticsAppeals] = useState([]);
+  const [statsDrilldownStatus, setStatsDrilldownStatus] = useState('all');
   const [statsLoading, setStatsLoading] = useState(true);
+  const isAdmin = user?.roles?.includes('Admin');
+  const isCouncil = user?.roles?.includes('CouncilEmployee');
 
   const handleViewDetails = (id) => {
     setSelectedAppealId(id);
@@ -54,6 +59,7 @@ function DashboardPage({ user, onLogout }) {
         });
 
         if (result.summary.appeals && Array.isArray(result.summary.appeals)) {
+          setAnalyticsAppeals(result.summary.appeals);
           const transformed = result.summary.appeals.map(appeal => ({
             ...appeal,
             id: appeal.AppealId || appeal.appealId,
@@ -64,10 +70,12 @@ function DashboardPage({ user, onLogout }) {
           })).slice(0, 5);
           setRecentAppeals(transformed);
         } else {
+          setAnalyticsAppeals([]);
           setRecentAppeals([]);
         }
       } else {
         setStats({ total: 0, pending: 0, inProgress: 0, resolved: 0 });
+        setAnalyticsAppeals([]);
         setRecentAppeals([]);
       }
       setStatsLoading(false);
@@ -114,10 +122,46 @@ function DashboardPage({ user, onLogout }) {
                 </div>
 
                 <div className="stats-section">
-                  <StatCard icon="total" title="Total Appeals" value={statsLoading ? '-' : stats.total} color="#E3F2FD" />
-                  <StatCard icon="pending" title="Pending" value={statsLoading ? '-' : stats.pending} color="#FFF3E0" />
-                  <StatCard icon="progress" title="In Progress" value={statsLoading ? '-' : stats.inProgress} color="#FFF3E0" />
-                  <StatCard icon="resolved" title="Resolved" value={statsLoading ? '-' : stats.resolved} color="#E8F5E9" />
+                  <StatCard
+                    icon="total"
+                    title="Total Appeals"
+                    value={statsLoading ? '-' : stats.total}
+                    color="#E3F2FD"
+                    onClick={() => {
+                      setStatsDrilldownStatus('all');
+                      setCurrentPage('stats');
+                    }}
+                  />
+                  <StatCard
+                    icon="pending"
+                    title="Pending"
+                    value={statsLoading ? '-' : stats.pending}
+                    color="#FFF3E0"
+                    onClick={() => {
+                      setStatsDrilldownStatus('Pending');
+                      setCurrentPage('stats');
+                    }}
+                  />
+                  <StatCard
+                    icon="progress"
+                    title="In Progress"
+                    value={statsLoading ? '-' : stats.inProgress}
+                    color="#FFF3E0"
+                    onClick={() => {
+                      setStatsDrilldownStatus('In Progress');
+                      setCurrentPage('stats');
+                    }}
+                  />
+                  <StatCard
+                    icon="resolved"
+                    title="Resolved"
+                    value={statsLoading ? '-' : stats.resolved}
+                    color="#E8F5E9"
+                    onClick={() => {
+                      setStatsDrilldownStatus('Resolved');
+                      setCurrentPage('stats');
+                    }}
+                  />
                 </div>
 
                 <div className="main-content">
@@ -155,24 +199,41 @@ function DashboardPage({ user, onLogout }) {
 
           {/* STATS TAB */}
           {currentPage === 'stats' && (
-              <div className="stats-page">
-                <h1>Statistics</h1>
-                <p>View detailed statistics about city infrastructure.</p>
-              </div>
+              <AnalyticsReports
+                appeals={analyticsAppeals}
+                loading={statsLoading}
+                defaultStatus={statsDrilldownStatus}
+                filterType={filterType}
+                filterValue={filterValue}
+              />
           )}
 
           {/* ADMIN DASHBOARD TAB */}
           {currentPage === 'adminDashboard' && (
-              <div className="admin-page-wrapper">
-                <AdminDashboard />
-              </div>
+              isAdmin ? (
+                <div className="admin-page-wrapper">
+                  <AdminDashboard />
+                </div>
+              ) : (
+                <div className="stats-page">
+                  <h1>Access denied</h1>
+                  <p>Only administrators can open this page.</p>
+                </div>
+              )
           )}
 
           {/* COUNCIL DASHBOARD TAB <-- ДОДАНО */}
           {currentPage === 'councilDashboard' && (
-              <div className="council-page-wrapper">
-                <CouncilDashboard />
-              </div>
+              isCouncil ? (
+                <div className="council-page-wrapper">
+                  <CouncilDashboard />
+                </div>
+              ) : (
+                <div className="stats-page">
+                  <h1>Access denied</h1>
+                  <p>Only council employees can open this page.</p>
+                </div>
+              )
           )}
 
         </div>

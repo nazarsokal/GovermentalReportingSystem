@@ -1,7 +1,7 @@
 import React from 'react';
 import '../styles/StatCard.css';
 
-function StatCard({ icon, title, value, color }) {
+function StatCard({ icon, title, value, color, onClick }) {
   const getIcon = () => {
     switch (icon) {
       case 'total':
@@ -34,7 +34,13 @@ function StatCard({ icon, title, value, color }) {
   };
 
   return (
-    <div className="stat-card" style={{ backgroundColor: color }}>
+    <button
+      type="button"
+      className={`stat-card ${onClick ? 'stat-card-clickable' : ''}`}
+      style={{ backgroundColor: color }}
+      onClick={onClick}
+      disabled={!onClick}
+    >
       <div className="stat-icon-container">
         {getIcon()}
       </div>
@@ -42,7 +48,7 @@ function StatCard({ icon, title, value, color }) {
         <h3>{title}</h3>
         <p className="stat-value">{value}</p>
       </div>
-    </div>
+    </button>
   );
 }
 

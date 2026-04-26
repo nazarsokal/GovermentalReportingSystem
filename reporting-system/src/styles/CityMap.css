@@ -26,18 +26,6 @@
   border-radius: 8px;
 }
 
-.gm-root,
-.gm-style {
-  width: 100% !important;
-  height: 100% !important;
-}
-
-.gm-maps-container {
-  width: 100% !important;
-  height: 100% !important;
-  border-radius: 8px;
-}
-
 .map-loading-overlay {
   position: absolute;
   top: 0;
@@ -127,7 +115,6 @@
 .error-content a:hover {
   text-decoration: underline;
 }
-
 
 @media (max-width: 768px) {
   .city-map-container {
