@@ -54,7 +54,9 @@ class AuthService {
         // --- NEW: Decode JWT to get roles on Register ---
         const userRoles = this.extractRolesFromToken(data.accessToken);
         user.roles = userRoles;
+        user.role = userRoles[0] || null;
         user.isAdmin = userRoles.includes('Admin');
+        user.councilId = data.councilId ?? user.councilId ?? null;
         console.log('🔐 Roles extracted on register:', userRoles);
 
         // Check if address data is in separate object
@@ -78,6 +80,8 @@ class AuthService {
           localStorage.setItem('userOblast', oblast);
           user.oblast = oblast;
         }
+
+        localStorage.setItem('councilId', user.councilId ?? '');
 
         localStorage.setItem('user', JSON.stringify(user));
 
@@ -144,7 +148,9 @@ class AuthService {
         // --- NEW: Decode JWT to get roles on Login ---
         const userRoles = this.extractRolesFromToken(data.accessToken);
         user.roles = userRoles;
+        user.role = userRoles[0] || null;
         user.isAdmin = userRoles.includes('Admin');
+        user.councilId = data.councilId ?? user.councilId ?? null;
         console.log('🔐 Roles extracted on login:', userRoles);
 
         // Check if address data is in separate object
@@ -162,6 +168,7 @@ class AuthService {
         // Also check if district/oblast are directly in user object
         if (user && user.district) localStorage.setItem('userDistrict', user.district);
         if (user && user.oblast) localStorage.setItem('userOblast', user.oblast);
+        localStorage.setItem('councilId', user.councilId ?? '');
 
         localStorage.setItem('user', JSON.stringify(user));
 
@@ -196,6 +203,7 @@ class AuthService {
     localStorage.removeItem('user');
     localStorage.removeItem('userDistrict');
     localStorage.removeItem('userOblast');
+    localStorage.removeItem('councilId');
   }
 
   // Update user address
@@ -224,6 +232,10 @@ class AuthService {
           user.district = district;
           user.oblast = oblast;
           localStorage.setItem('user', JSON.stringify(user));
+
+          if (user.councilId) {
+            localStorage.setItem('councilId', user.councilId);
+          }
         }
 
         // Also store district and oblast separately for persistence
@@ -265,6 +277,13 @@ class AuthService {
       }
       if (savedOblast) {
         user.oblast = savedOblast;
+      }
+    }
+
+    if (user && (user.councilId === undefined || user.councilId === null)) {
+      const savedCouncilId = localStorage.getItem('councilId');
+      if (savedCouncilId) {
+        user.councilId = savedCouncilId;
       }
     }
 
@@ -321,7 +340,10 @@ class AuthService {
         if (user) {
           const userRoles = this.extractRolesFromToken(data.accessToken);
           user.roles = userRoles;
+          user.role = userRoles[0] || null;
           user.isAdmin = userRoles.includes('Admin');
+          user.councilId = data.councilId ?? user.councilId ?? null;
+          localStorage.setItem('councilId', user.councilId ?? '');
           localStorage.setItem('user', JSON.stringify(user));
         }
 

@@ -7,7 +7,8 @@ import CityMap from '../components/CityMap';
 import AppealService from '../services/AppealService';
 import ReportProblem from '../components/ReportProblem';
 import AppealDetails from '../components/AppealDetails';
-import AdminDashboard from '../components/AdminDashboard'; // <-- Ensure this is imported
+import AdminDashboard from '../components/AdminDashboard';
+import CouncilDashboard from '../components/CouncilDashboard'; // <-- ДОДАНО ІМПОРТ
 
 function DashboardPage({ user, onLogout }) {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -164,6 +165,13 @@ function DashboardPage({ user, onLogout }) {
           {currentPage === 'adminDashboard' && (
               <div className="admin-page-wrapper">
                 <AdminDashboard />
+              </div>
+          )}
+
+          {/* COUNCIL DASHBOARD TAB <-- ДОДАНО */}
+          {currentPage === 'councilDashboard' && (
+              <div className="council-page-wrapper">
+                <CouncilDashboard />
               </div>
           )}
 

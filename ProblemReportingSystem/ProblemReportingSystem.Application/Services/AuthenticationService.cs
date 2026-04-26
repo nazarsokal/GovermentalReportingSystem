@@ -102,6 +102,7 @@ public class AuthenticationService : IAuthenticationService
                 TokenType = "Bearer",
                 User = userDto,
                 Address = addressDto,
+                CouncilId = createdUser.CouncilEmployee?.CouncilId,
                 Message = "Registration successful"
             };
         }
@@ -186,6 +187,7 @@ public class AuthenticationService : IAuthenticationService
                 TokenType = "Bearer",
                 User = userDto,
                 Address = addressDto,
+                CouncilId = user.CouncilEmployee?.CouncilId,
                 Message = "Login successful"
             };
         }
@@ -277,6 +279,7 @@ public class AuthenticationService : IAuthenticationService
                 TokenType = "Bearer",
                 User = userDto,
                 Address = addressDto,
+                CouncilId = user.CouncilEmployee?.CouncilId,
                 Message = "Google authentication successful"
             };
         }
@@ -365,6 +368,7 @@ public class AuthenticationService : IAuthenticationService
                 ExpiresIn = _jwtExpirationMinutes * 60,
                 TokenType = "Bearer",
                 User = userDto,
+                CouncilId = createdUser.CouncilEmployee?.CouncilId,
                 Message = "Google registration successful"
             };
         }

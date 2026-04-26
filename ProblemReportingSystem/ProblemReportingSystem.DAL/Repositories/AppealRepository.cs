@@ -16,9 +16,15 @@ public class AppealRepository : ProblemReportingSystemRepository<Appeal>, IAppea
 
     public async Task<IEnumerable<Appeal>> GetAppealsByCouncilAsync(Guid councilId)
     {
+        var foundCouncil = await _context.CityCouncils.Where(c => c.CouncilId == councilId).Include(p => p.Address).FirstOrDefaultAsync();
         return await _context.Appeals
-            .Where(a => a.AssignedEmployee != null && a.AssignedEmployee.CouncilId == councilId)
+            .Where(a => foundCouncil != null && foundCouncil.Address != null && a.Problem.Address.District == foundCouncil.Address.District)
             .Include(a => a.Problem)
+            .ThenInclude(p => p.Address)
+            .Include(a => a.Problem)
+            .ThenInclude(p => p.Category)
+            .Include(a => a.Problem)
+            .ThenInclude(p => p.ProblemPhotos)
             .Include(a => a.AssignedEmployee)
             .Include(a => a.User)
             .ToListAsync();
@@ -42,8 +48,14 @@ public class AppealRepository : ProblemReportingSystemRepository<Appeal>, IAppea
         return await _context.Appeals
             .Where(a => a.AssignedEmployee != null && 
                         a.AssignedEmployee.CouncilId == councilId &&
+                        a.Problem != null &&
                         a.Problem.Status == status)
             .Include(a => a.Problem)
+            .ThenInclude(p => p.Address)
+            .Include(a => a.Problem)
+            .ThenInclude(p => p.Category)
+            .Include(a => a.Problem)
+            .ThenInclude(p => p.ProblemPhotos)
             .Include(a => a.AssignedEmployee)
             .Include(a => a.User)
             .ToListAsync();

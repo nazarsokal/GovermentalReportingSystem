@@ -1,0 +1,348 @@
+.council-dashboard-wrapper {
+    padding: 30px;
+    max-width: 1400px;
+    margin: 0 auto;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #fafafa;
+    min-height: 100vh;
+}
+
+.council-header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+}
+
+.council-title {
+    margin: 0 0 4px 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.council-subtitle {
+    margin: 0;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.btn-add-employee {
+    background-color: #2563eb;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-add-employee:hover {
+    background-color: #1d4ed8;
+}
+
+/* Stats Cards */
+.stats-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.stat-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.stat-title {
+    font-size: 13px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 4px;
+}
+
+.stat-subtext {
+    font-size: 13px;
+    color: #9ca3af;
+}
+
+.stat-subtext.red-text { color: #ef4444; }
+.stat-subtext.green-text { color: #10b981; }
+
+/* Tabs */
+.council-tabs {
+    display: inline-flex;
+    background-color: #f3f4f6;
+    padding: 4px;
+    border-radius: 99px;
+    margin-bottom: 24px;
+}
+
+.council-tab {
+    padding: 8px 20px;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    font-weight: 600;
+    color: #4b5563;
+    cursor: pointer;
+    border-radius: 99px;
+    transition: all 0.2s;
+}
+
+.council-tab.active {
+    background: white;
+    color: #111827;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Kanban Section */
+.kanban-section {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.kanban-header h2 {
+    font-size: 16px;
+    margin: 0 0 4px 0;
+    color: #111827;
+}
+
+.kanban-header p {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 0 0 24px 0;
+}
+
+.kanban-board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.column-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f3f4f6;
+}
+
+.column-header h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.badge-pending { background: #fef2f2; color: #ef4444; }
+.badge-progress { background: #fffbeb; color: #f59e0b; }
+.badge-resolved { background: #ecfdf5; color: #10b981; }
+
+.column-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Kanban Card */
+.kanban-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    cursor: pointer;
+}
+
+.kanban-card:hover {
+    border-color: #d1d5db;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+.card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.card-top h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.card-date {
+    font-size: 12px;
+    background: #f3f4f6;
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: #4b5563;
+    font-weight: 500;
+}
+
+.card-address {
+    margin: 0 0 6px 0;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.card-desc {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    color: #4b5563;
+    line-height: 1.4;
+}
+
+.card-author {
+    margin: 0;
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+/* Charts Grid */
+.charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 20px;
+}
+
+.chart-container {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.chart-container h3 {
+    margin: 0 0 20px 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #374151;
+}
+
+/* ####################################################### */
+/* # FIXED MODAL STYLING - SCOPED TO .modal-content        # */
+/* # This prevents bleed onto the login page               # */
+/* ####################################################### */
+
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    width: 400px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+/* SCOPED: form-group inside modal-content */
+.modal-content .form-group {
+    margin-bottom: 15px;
+}
+
+.modal-content .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: left; /* Ensure labels are left-aligned */
+}
+
+/* THE FIX: Scoped input styling so it doesn't break the login page */
+.modal-content .form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    box-sizing: border-box; /* Crucial for correct padding */
+    font-size: 14px;
+}
+
+.modal-content .form-group input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.modal-content .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 24px;
+}
+
+/* SCOPED: Buttons inside modal-content */
+.modal-content .btn-secondary {
+    background: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.modal-content .btn-secondary:hover {
+    background-color: #f9fafb;
+}
+
+.modal-content .btn-primary {
+    background: #2563eb;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.modal-content .btn-primary:hover {
+    background-color: #1d4ed8;
+}

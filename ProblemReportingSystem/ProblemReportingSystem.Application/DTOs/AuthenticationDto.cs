@@ -216,6 +216,11 @@ public class AuthenticationResponseDto
     public AddressDto? Address { get; set; }
 
     /// <summary>
+    /// Council ID for council employees (null for other roles)
+    /// </summary>
+    public Guid? CouncilId { get; set; }
+
+    /// <summary>
     /// Error message if authentication/registration failed
     /// </summary>
     public string? Message { get; set; }
