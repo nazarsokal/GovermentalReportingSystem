@@ -21,7 +21,7 @@ function CityMap({ user, onViewDetails }) {
   const [appeals, setAppeals] = useState([]);
   const [appealsLoading, setAppealsLoading] = useState(false);
   const [appealsError, setAppealsError] = useState(null);
-  const [mapCenter, setMapCenter] = useState(null);
+  const [mapCenter, setMapCenter] = useState(DEFAULT_COORDINATES);
   const [selectedAppeal, setSelectedAppeal] = useState(null);
   const [appealSummary, setAppealSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
@@ -80,7 +80,7 @@ function CityMap({ user, onViewDetails }) {
     const fetchAppealsForVisibleDistricts = async () => {
       const visibleDistricts = getVisibleDistricts();
       if (visibleDistricts.length === 0) {
-        setAppeals([]);
+        // Keep existing markers during transient map states (e.g. while bounds are recalculating)
         return;
       }
 
@@ -109,7 +109,16 @@ function CityMap({ user, onViewDetails }) {
   const handleMapMove = () => {
     if (!mapRef.current || !districtCoordinates || Object.keys(districtCoordinates).length === 0) return;
 
+    const currentCenter = mapRef.current.getCenter();
+    if (currentCenter) {
+      setMapCenter({
+        lat: currentCenter.lat(),
+        lng: currentCenter.lng()
+      });
+    }
+
     const visibleDistricts = getVisibleDistricts();
+    if (visibleDistricts.length === 0) return;
     const newDistricts = visibleDistricts.filter(district => !fetchedDistrictsRef.current.has(district));
 
     if (newDistricts.length > 0) {
@@ -131,7 +140,6 @@ function CityMap({ user, onViewDetails }) {
 
   const mapOptions = {
     zoom: 12,
-    center: mapCenter || DEFAULT_COORDINATES,
     mapTypeId: 'roadmap',
     fullscreenControl: true,
     zoomControl: true,
@@ -215,8 +223,7 @@ function CityMap({ user, onViewDetails }) {
                   options={mapOptions}
                   onLoad={handleMapLoad}
                   onError={handleMapError}
-                  onDragEnd={handleMapMove}
-                  onZoomChanged={handleMapMove}
+                  onIdle={handleMapMove}
               >
                 {appeals.map((appeal) => {
                   let iconUrl = appeal.categoryIconUrl;
