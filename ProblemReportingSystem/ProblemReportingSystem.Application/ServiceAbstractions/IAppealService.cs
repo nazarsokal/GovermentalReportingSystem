@@ -6,6 +6,7 @@ public interface IAppealService
 {
     // Create
     Task<Guid> CreateAppealAsync(AppealDto createAppealDto);
+    Task<List<(bool Success, Guid? AppealId, string? ErrorMessage)>> CreateAppealsFromCsvAsync(List<AppealDto> appeals);
 
     // Read
     Task<AppealDto?> GetAppealByIdAsync(Guid appealId);

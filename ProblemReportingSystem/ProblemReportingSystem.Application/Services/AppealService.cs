@@ -37,6 +37,31 @@ public class AppealService : IAppealService
         return appeal.AppealId;
     }
 
+    public async Task<List<(bool Success, Guid? AppealId, string? ErrorMessage)>> CreateAppealsFromCsvAsync(List<AppealDto> appeals)
+    {
+        if (appeals == null || appeals.Count == 0)
+            throw new ArgumentException("Appeals list cannot be null or empty", nameof(appeals));
+
+        var results = new List<(bool Success, Guid? AppealId, string? ErrorMessage)>();
+
+        foreach (var appealDto in appeals)
+        {
+            try
+            {
+                var appealId = await CreateAppealAsync(appealDto);
+                results.Add((true, appealId, null));
+                _logger.LogInformation($"CSV Appeal created successfully with ID: {appealId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error creating appeal for user {appealDto.UserId}");
+                results.Add((false, null, ex.Message));
+            }
+        }
+
+        return results;
+    }
+
     // Read - Single
     public async Task<AppealDto?> GetAppealByIdAsync(Guid appealId)
     {
@@ -252,7 +277,7 @@ public class AppealService : IAppealService
     {
         _logger.LogInformation("Calculating overall appeal statistics");
         
-        var appealsList = _appealRepository.GetAll().ToList();
+        var appealsList = (await _appealRepository.GetAllAppealsWithDetailsAsync()).ToList();
 
         var stats = new AppealStatisticsDto
         {
@@ -357,7 +382,7 @@ public class AppealService : IAppealService
     {
         _logger.LogInformation("Calculating appeal status distribution");
         
-        var appeals = _appealRepository.GetAll();
+        var appeals = await _appealRepository.GetAllAppealsWithDetailsAsync();
         return appeals
             .Where(a => a.Problem != null)
             .GroupBy(a => a.Problem!.Status ?? "Unknown")
@@ -384,7 +409,7 @@ public class AppealService : IAppealService
     {
         _logger.LogInformation("Calculating average resolution time");
         
-        var appeals = _appealRepository.GetAll();
+        var appeals = await _appealRepository.GetAllAppealsWithDetailsAsync();
         var resolvedAppeals = appeals
             .Where(a => a.Problem != null && a.Problem.Status == "Resolved" && a.CreatedAt.HasValue && a.UpdatedAt.HasValue)
             .ToList();
@@ -406,7 +431,7 @@ public class AppealService : IAppealService
 
         _logger.LogInformation($"Calculating appeal trends for the last {daysBack} days");
         
-        var appeals = _appealRepository.GetAll();
+        var appeals = await _appealRepository.GetAllAppealsWithDetailsAsync();
         var cutoffDate = DateTime.UtcNow.AddDays(-daysBack);
         
         var recentAppeals = appeals

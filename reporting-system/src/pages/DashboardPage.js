@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/DashboardPage.css';
 import Navbar from '../components/Navbar';
-import StatCard from '../components/StatCard';
 import RecentAppeals from '../components/RecentAppeals';
 import CityMap from '../components/CityMap';
 import AppealService from '../services/AppealService';
@@ -9,7 +8,7 @@ import PollService from '../services/PollService';
 import ReportProblem from '../components/ReportProblem';
 import AppealDetails from '../components/AppealDetails';
 import AdminDashboard from '../components/AdminDashboard';
-import CouncilDashboard from '../components/CouncilDashboard'; // <-- ДОДАНО ІМПОРТ
+import CouncilDashboard from '../components/CouncilDashboard';
 import AnalyticsReports from '../components/AnalyticsReports';
 
 function DashboardPage({ user, onLogout }) {
@@ -129,6 +128,19 @@ function DashboardPage({ user, onLogout }) {
     setSubmittingPollId(null);
   };
 
+  // Спільний стиль для карток статистики, щоб вони реагували на наведення
+  const statCardStyle = {
+    cursor: 'pointer',
+    background: 'white',
+    border: '1px solid #e5e7eb',
+    borderRadius: '12px',
+    padding: '20px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between'
+  };
+
   return (
       <div className="dashboard-container">
         <Navbar user={user} onLogout={onLogout} currentPage={currentPage} setCurrentPage={setCurrentPage} />
@@ -139,11 +151,6 @@ function DashboardPage({ user, onLogout }) {
           {currentPage === 'dashboard' && (
               <>
                 <div className="dashboard-header">
-                  <div style={{ marginBottom: '20px' }}>
-                    <h1>Citizen Dashboard</h1>
-                    <p>Track infrastructure problems in your city</p>
-                  </div>
-
                   <div style={{ display: 'flex', gap: '15px', alignItems: 'center', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <label style={{ fontWeight: 'bold', color: '#333' }}>View by:</label>
@@ -166,48 +173,55 @@ function DashboardPage({ user, onLogout }) {
                   </div>
                 </div>
 
-                <div className="stats-section">
-                  <StatCard
-                    icon="total"
-                    title="Total Appeals"
-                    value={statsLoading ? '-' : stats.total}
-                    color="#E3F2FD"
-                    onClick={() => {
-                      setStatsDrilldownStatus('all');
-                      setCurrentPage('stats');
-                    }}
-                  />
-                  <StatCard
-                    icon="pending"
-                    title="Pending"
-                    value={statsLoading ? '-' : stats.pending}
-                    color="#FFF3E0"
-                    onClick={() => {
-                      setStatsDrilldownStatus('Pending');
-                      setCurrentPage('stats');
-                    }}
-                  />
-                  <StatCard
-                    icon="progress"
-                    title="In Progress"
-                    value={statsLoading ? '-' : stats.inProgress}
-                    color="#FFF3E0"
-                    onClick={() => {
-                      setStatsDrilldownStatus('In Progress');
-                      setCurrentPage('stats');
-                    }}
-                  />
-                  <StatCard
-                    icon="resolved"
-                    title="Resolved"
-                    value={statsLoading ? '-' : stats.resolved}
-                    color="#E8F5E9"
-                    onClick={() => {
-                      setStatsDrilldownStatus('Resolved');
-                      setCurrentPage('stats');
-                    }}
-                  />
+                {/* --- ОНОВЛЕНИЙ БЛОК СТАТИСТИКИ (Заміна StatCard) --- */}
+                <div className="stats-section" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+
+                  {/* Total Appeals */}
+                  <div style={statCardStyle} onClick={() => { setStatsDrilldownStatus('all'); setCurrentPage('stats'); }} onMouseOver={e => e.currentTarget.style.borderColor = '#3b82f6'} onMouseOut={e => e.currentTarget.style.borderColor = '#e5e7eb'}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '600', textTransform: 'uppercase' }}>Total Appeals</span>
+                      <span style={{ fontSize: '20px' }}>📋</span>
+                    </div>
+                    <div style={{ fontSize: '32px', fontWeight: '700', color: '#111827' }}>
+                      {statsLoading ? '-' : stats.total}
+                    </div>
+                  </div>
+
+                  {/* Pending */}
+                  <div style={statCardStyle} onClick={() => { setStatsDrilldownStatus('Pending'); setCurrentPage('stats'); }} onMouseOver={e => e.currentTarget.style.borderColor = '#f59e0b'} onMouseOut={e => e.currentTarget.style.borderColor = '#e5e7eb'}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '600', textTransform: 'uppercase' }}>Pending</span>
+                      <span style={{ fontSize: '20px' }}>🕒</span>
+                    </div>
+                    <div style={{ fontSize: '32px', fontWeight: '700', color: '#111827' }}>
+                      {statsLoading ? '-' : stats.pending}
+                    </div>
+                  </div>
+
+                  {/* In Progress */}
+                  <div style={statCardStyle} onClick={() => { setStatsDrilldownStatus('In Progress'); setCurrentPage('stats'); }} onMouseOver={e => e.currentTarget.style.borderColor = '#f59e0b'} onMouseOut={e => e.currentTarget.style.borderColor = '#e5e7eb'}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '600', textTransform: 'uppercase' }}>In Progress</span>
+                      <span style={{ fontSize: '20px' }}>🚧</span>
+                    </div>
+                    <div style={{ fontSize: '32px', fontWeight: '700', color: '#111827' }}>
+                      {statsLoading ? '-' : stats.inProgress}
+                    </div>
+                  </div>
+
+                  {/* Resolved */}
+                  <div style={statCardStyle} onClick={() => { setStatsDrilldownStatus('Resolved'); setCurrentPage('stats'); }} onMouseOver={e => e.currentTarget.style.borderColor = '#10b981'} onMouseOut={e => e.currentTarget.style.borderColor = '#e5e7eb'}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: '600', textTransform: 'uppercase' }}>Resolved</span>
+                      <span style={{ fontSize: '20px' }}>✅</span>
+                    </div>
+                    <div style={{ fontSize: '32px', fontWeight: '700', color: '#111827' }}>
+                      {statsLoading ? '-' : stats.resolved}
+                    </div>
+                  </div>
+
                 </div>
+                {/* --- КІНЕЦЬ ОНОВЛЕНОГО БЛОКУ --- */}
 
                 <div className="main-content">
                   <div className="map-section">
@@ -216,78 +230,115 @@ function DashboardPage({ user, onLogout }) {
                   </div>
 
                   <div className="recent-section">
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px', alignItems: 'start' }}>
-                      <div style={{ minWidth: 0 }}>
-                        <RecentAppeals appeals={recentAppeals} loading={statsLoading} onViewDetails={handleViewDetails} />
-                      </div>
-                      <div style={{ minWidth: 0, background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '16px' }}>
-                        <h3 style={{ marginTop: 0, marginBottom: '8px' }}>District Polls</h3>
-                        {pollsLoading ? (
-                          <p style={{ margin: 0, color: '#6b7280' }}>Loading polls...</p>
-                        ) : districtPolls.length === 0 ? (
-                          <p style={{ margin: 0, color: '#6b7280' }}>No active polls in your district.</p>
-                        ) : (
-                          <div style={{ display: 'grid', gap: '12px' }}>
-                            {districtPolls.map(poll => {
-                              const isExpanded = expandedPollId === poll.pollId;
-                              const selectedOptionId = selectedPollOptions[poll.pollId] || '';
-                              return (
-                                <div key={poll.pollId} style={{ border: '1px solid #e5e7eb', borderRadius: '10px', padding: '12px' }}>
+                    <RecentAppeals appeals={recentAppeals} loading={statsLoading} onViewDetails={handleViewDetails} />
+                  </div>
+
+                  <div style={{ minWidth: 0, background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)', border: '1px solid rgba(0, 212, 170, 0.1)', borderRadius: '12px', padding: '16px', boxShadow: '0 4px 12px rgba(0, 212, 170, 0.06)' }}>
+                    <h3 style={{ marginTop: 0, marginBottom: '8px', fontWeight: '700', color: '#1a1a2e' }}>📋 District Polls</h3>
+                    {pollsLoading ? (
+                        <p style={{ margin: 0, color: '#64748b' }}>Loading polls...</p>
+                    ) : districtPolls.length === 0 ? (
+                        <p style={{ margin: 0, color: '#64748b' }}>No active polls in your district.</p>
+                    ) : (
+                        <div style={{ display: 'grid', gap: '12px' }}>
+                          {districtPolls.map(poll => {
+                            const isExpanded = expandedPollId === poll.pollId;
+                            const selectedOptionId = selectedPollOptions[poll.pollId] || '';
+                            return (
+                                <div key={poll.pollId} style={{ border: '1px solid rgba(0, 212, 170, 0.12)', borderRadius: '10px', padding: '12px', background: 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(248,250,252,0.95))' }}>
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                                    <h4 style={{ margin: 0, fontSize: '15px' }}>{poll.title}</h4>
+                                    <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: '#1a1a2e' }}>{poll.title}</h4>
                                     <button
-                                      type="button"
-                                      className="btn-secondary"
-                                      onClick={() => setExpandedPollId(isExpanded ? null : poll.pollId)}
-                                      style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}
+                                        type="button"
+                                        className="btn-secondary"
+                                        onClick={() => setExpandedPollId(isExpanded ? null : poll.pollId)}
+                                        style={{ padding: '6px 10px', whiteSpace: 'nowrap', border: '1px solid #d1d5db', background: 'white', borderRadius: '6px', cursor: 'pointer' }}
                                     >
                                       {isExpanded ? 'Collapse' : 'Expand'}
                                     </button>
                                   </div>
 
                                   {isExpanded && (
-                                    <div style={{ marginTop: '10px' }}>
-                                      <div style={{ display: 'grid', gap: '8px' }}>
-                                        {(poll.options || []).map(option => (
-                                          <label key={option.optionId} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
-                                            <input
-                                              type="radio"
-                                              name={`poll-${poll.pollId}`}
-                                              value={option.optionId}
-                                              checked={selectedOptionId === option.optionId}
-                                              onChange={(e) => setSelectedPollOptions(prev => ({ ...prev, [poll.pollId]: e.target.value }))}
-                                              disabled={poll.userHasVoted}
-                                            />
-                                            <span>{option.optionText}</span>
-                                          </label>
-                                        ))}
-                                      </div>
+                                      <div style={{ marginTop: '10px' }}>
+                                        <div style={{ display: 'grid', gap: '8px' }}>
+                                          {(poll.options || []).map(option => (
+                                              <label key={option.optionId} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#1a1a2e', cursor: poll.userHasVoted ? 'default' : 'pointer' }}>
+                                                <input
+                                                    type="radio"
+                                                    name={`poll-${poll.pollId}`}
+                                                    value={option.optionId}
+                                                    checked={selectedOptionId === option.optionId}
+                                                    onChange={(e) => setSelectedPollOptions(prev => ({ ...prev, [poll.pollId]: e.target.value }))}
+                                                    disabled={poll.userHasVoted}
+                                                />
+                                                <span>{option.optionText}</span>
+                                              </label>
+                                          ))}
+                                        </div>
 
-                                      <div style={{ marginTop: '12px' }}>
-                                        <button
-                                          type="button"
-                                          className="btn-primary"
-                                          onClick={() => handleVote(poll.pollId, selectedOptionId)}
-                                          disabled={poll.userHasVoted || submittingPollId === poll.pollId || !selectedOptionId}
-                                        >
-                                          {submittingPollId === poll.pollId ? 'Submitting...' : 'Submit'}
-                                        </button>
-                                      </div>
+                                        <div style={{ marginTop: '12px' }}>
+                                          <button
+                                              type="button"
+                                              className="btn-primary"
+                                              onClick={() => handleVote(poll.pollId, selectedOptionId)}
+                                              disabled={poll.userHasVoted || submittingPollId === poll.pollId || !selectedOptionId}
+                                              style={{ padding: '8px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', cursor: (poll.userHasVoted || !selectedOptionId) ? 'not-allowed' : 'pointer', opacity: (poll.userHasVoted || !selectedOptionId) ? 0.6 : 1 }}
+                                          >
+                                            {submittingPollId === poll.pollId ? 'Submitting...' : 'Submit'}
+                                          </button>
+                                        </div>
 
-                                      {poll.userHasVoted && (
-                                        <p style={{ margin: '8px 0 0', color: '#059669', fontSize: '13px' }}>
-                                          You have already voted in this poll.
-                                        </p>
-                                      )}
-                                    </div>
+                                        {poll.userHasVoted && (
+                                            <p style={{ margin: '8px 0 0', color: '#00865d', fontSize: '13px', fontWeight: '600' }}>
+                                              ✓ You have already voted in this poll.
+                                            </p>
+                                        )}
+                                      </div>
                                   )}
                                 </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
+                            );
+                          })}
+                        </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ADDITIONAL STATS */}
+                <div className="additional-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginTop: '24px' }}>
+                  <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+                    <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '800', color: '#1a1a2e', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      ⚡ Resolution Rate
+                    </h3>
+                    <div style={{ fontSize: '32px', fontWeight: '800', background: 'linear-gradient(135deg, #00d4aa, #00b897)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '8px' }}>
+                      {stats.total === 0 ? '0%' : Math.round((stats.resolved / stats.total) * 100) + '%'}
                     </div>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                      {stats.resolved} of {stats.total} appeals resolved
+                    </p>
+                  </div>
+
+                  <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+                    <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '800', color: '#1a1a2e', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      🔄 Avg Response Time
+                    </h3>
+                    <div style={{ fontSize: '32px', fontWeight: '800', background: 'linear-gradient(135deg, #ff8c42, #ff6b6b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '8px' }}>
+                      {Math.ceil(stats.total / (stats.pending + stats.inProgress + 1))} days
+                    </div>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                      Estimated average time to resolution
+                    </p>
+                  </div>
+
+                  <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+                    <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '800', color: '#1a1a2e', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      📈 Active Appeals
+                    </h3>
+                    <div style={{ fontSize: '32px', fontWeight: '800', background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '8px' }}>
+                      {stats.pending + stats.inProgress}
+                    </div>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                      Pending and in progress appeals
+                    </p>
                   </div>
                 </div>
               </>
@@ -316,39 +367,39 @@ function DashboardPage({ user, onLogout }) {
           {/* STATS TAB */}
           {currentPage === 'stats' && (
               <AnalyticsReports
-                appeals={analyticsAppeals}
-                loading={statsLoading}
-                defaultStatus={statsDrilldownStatus}
-                filterType={filterType}
-                filterValue={filterValue}
+                  appeals={analyticsAppeals}
+                  loading={statsLoading}
+                  defaultStatus={statsDrilldownStatus}
+                  filterType={filterType}
+                  filterValue={filterValue}
               />
           )}
 
           {/* ADMIN DASHBOARD TAB */}
           {currentPage === 'adminDashboard' && (
               isAdmin ? (
-                <div className="admin-page-wrapper">
-                  <AdminDashboard />
-                </div>
+                  <div className="admin-page-wrapper">
+                    <AdminDashboard />
+                  </div>
               ) : (
-                <div className="stats-page">
-                  <h1>Access denied</h1>
-                  <p>Only administrators can open this page.</p>
-                </div>
+                  <div className="stats-page">
+                    <h1>Access denied</h1>
+                    <p>Only administrators can open this page.</p>
+                  </div>
               )
           )}
 
-          {/* COUNCIL DASHBOARD TAB <-- ДОДАНО */}
+          {/* COUNCIL DASHBOARD TAB */}
           {currentPage === 'councilDashboard' && (
               isCouncil ? (
-                <div className="council-page-wrapper">
-                  <CouncilDashboard />
-                </div>
+                  <div className="council-page-wrapper">
+                    <CouncilDashboard />
+                  </div>
               ) : (
-                <div className="stats-page">
-                  <h1>Access denied</h1>
-                  <p>Only council employees can open this page.</p>
-                </div>
+                  <div className="stats-page">
+                    <h1>Access denied</h1>
+                    <p>Only council employees can open this page.</p>
+                  </div>
               )
           )}
 

@@ -1,26 +1,29 @@
 .recent-appeals {
-  padding: 20px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   height: 100%;
 }
 
 .recent-appeals h2 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 20px;
 }
 
 .appeals-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   flex: 1;
   min-height: 180px;
   max-height: clamp(260px, 46vh, 560px);
   overflow-y: auto;
-  padding-right: 6px; /* keep content away from scrollbar */
+  padding-right: 6px;
 }
 
 .appeals-list::-webkit-scrollbar {
@@ -28,42 +31,44 @@
 }
 
 .appeals-list::-webkit-scrollbar-track {
-  background: #f3f4f6;
+  background: rgba(0, 212, 170, 0.05);
   border-radius: 3px;
 }
 
 .appeals-list::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
   border-radius: 3px;
 }
 
 .appeals-list::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: var(--primary-dark);
 }
 
 .appeal-item {
   padding: 16px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid rgba(0, 212, 170, 0.15);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95));
   transition: all 0.3s ease;
   cursor: pointer;
 }
 
 .appeal-item:hover {
-  border-color: #d1d5db;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 212, 170, 0.3);
+  box-shadow: 0 8px 16px rgba(0, 212, 170, 0.12);
+  transform: translateY(-2px);
 }
 
 .appeal-content h3 {
   font-size: 14px;
-  font-weight: 600;
-  color: #1f2937;
+  font-weight: 700;
+  color: #1a1a2e;
   margin: 0 0 6px;
 }
 
 .appeal-issue {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--neutral);
   margin: 0;
 }
 
@@ -71,37 +76,41 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 .appeal-status {
   display: inline-block;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 6px;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
 }
 
 .appeal-status.pending {
-  background-color: #FEF3C7;
-  color: #92400E;
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.15), rgba(255, 140, 66, 0.1));
+  color: #c41612;
+  border: 1px solid rgba(255, 107, 107, 0.2);
 }
 
 .appeal-status.in-progress {
-  background-color: #FEF3C7;
-  color: #92400E;
+  background: linear-gradient(135deg, rgba(255, 140, 66, 0.15), rgba(255, 181, 54, 0.1));
+  color: #b97f00;
+  border: 1px solid rgba(255, 140, 66, 0.2);
 }
 
 .appeal-status.resolved {
-  background-color: #D1FAE5;
-  color: #065F46;
+  background: linear-gradient(135deg, rgba(0, 212, 170, 0.15), rgba(0, 180, 151, 0.1));
+  color: #00865d;
+  border: 1px solid rgba(0, 212, 170, 0.2);
 }
 
 .appeal-date {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--neutral);
+  font-weight: 600;
 }
 
 @media (max-width: 768px) {

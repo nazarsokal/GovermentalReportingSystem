@@ -1,6 +1,8 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Globalization;
+using CsvHelper;
 using ProblemReportingSystem.API.Contracts.Request;
 using ProblemReportingSystem.API.Contracts.Response;
 using ProblemReportingSystem.Application.DTOs;
@@ -1179,5 +1181,226 @@ public class AppealController : ControllerBase
                 Message = "An error occurred while retrieving appeal summaries"
             });
         }
+    }
+
+    // ===== CSV UPLOAD =====
+    /// <summary>
+    /// Uploads and processes appeals from a CSV file.
+    /// The CSV file should contain columns: CategoryId, Title, Description, Status, City, Street, BuildingNumber, Latitude, Longitude
+    /// </summary>
+    /// <param name="request">CSV file and optional default user ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Summary of upload results with success/failure details</returns>
+    /// <response code="200">CSV processed (may contain partial success)</response>
+    /// <response code="400">Invalid request or file format</response>
+    /// <response code="500">Server error occurred</response>
+    [HttpPost("upload-csv")]
+    [ProducesResponseType(typeof(UploadAppealsFromCsvResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> UploadAppealsFromCsv([FromForm] UploadAppealsFromCsvRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (request?.CsvFile == null || request.CsvFile.Length == 0)
+            {
+                _logger.LogWarning("CSV file is null or empty");
+                return BadRequest(new ErrorResponse
+                {
+                    Success = false,
+                    Message = "CSV file is required and cannot be empty"
+                });
+            }
+
+            if (!request.CsvFile.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning($"Invalid file format: {request.CsvFile.FileName}");
+                return BadRequest(new ErrorResponse
+                {
+                    Success = false,
+                    Message = "Only CSV files are allowed"
+                });
+            }
+
+            // Get default user ID from JWT claims if not provided
+            Guid defaultUserId = request.DefaultUserId ?? Guid.Empty;
+            if (defaultUserId == Guid.Empty)
+            {
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+                if (userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var userId))
+                {
+                    defaultUserId = userId;
+                }
+            }
+
+            // Parse CSV file
+            var appeals = new List<AppealDto>();
+            var errors = new List<CsvUploadErrorDetail>();
+
+            using (var reader = new StreamReader(request.CsvFile.OpenReadStream()))
+            using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
+            {
+                csv.Context.RegisterClassMap<AppealCsvMap>();
+                var records = csv.GetRecords<AppealCsvRecord>().ToList();
+
+                if (records.Count == 0)
+                {
+                    _logger.LogWarning("CSV file contains no data records");
+                    return BadRequest(new ErrorResponse
+                    {
+                        Success = false,
+                        Message = "CSV file contains no data records"
+                    });
+                }
+
+                int rowNumber = 2; // Start from 2 since row 1 is header
+                foreach (var record in records)
+                {
+                    try
+                    {
+                        // Validate required fields
+                        if (string.IsNullOrWhiteSpace(record.Title) || string.IsNullOrWhiteSpace(record.Description))
+                        {
+                            errors.Add(new CsvUploadErrorDetail
+                            {
+                                RowNumber = rowNumber,
+                                ErrorMessage = "Title and Description are required",
+                                RowData = MapRecordToDictionary(record)
+                            });
+                            rowNumber++;
+                            continue;
+                        }
+
+                        if (record.CategoryId == Guid.Empty)
+                        {
+                            errors.Add(new CsvUploadErrorDetail
+                            {
+                                RowNumber = rowNumber,
+                                ErrorMessage = "CategoryId is required and must be a valid GUID",
+                                RowData = MapRecordToDictionary(record)
+                            });
+                            rowNumber++;
+                            continue;
+                        }
+
+                        if (record.Latitude == 0 || record.Longitude == 0)
+                        {
+                            errors.Add(new CsvUploadErrorDetail
+                            {
+                                RowNumber = rowNumber,
+                                ErrorMessage = "Latitude and Longitude must be provided",
+                                RowData = MapRecordToDictionary(record)
+                            });
+                            rowNumber++;
+                            continue;
+                        }
+
+                        // Create appeal DTO
+                        var appealDto = new AppealDto
+                        {
+                            UserId = defaultUserId,
+                            ProblemDto = new CreateProblemDto
+                            {
+                                UserId = defaultUserId,
+                                CategoryId = record.CategoryId,
+                                Title = record.Title,
+                                Description = record.Description,
+                                Status = record.Status ?? "Pending",
+                                City = record.City,
+                                Street = record.Street,
+                                BuildingNumber = record.BuildingNumber,
+                                Latitude = record.Latitude,
+                                Longitude = record.Longitude
+                            }
+                        };
+
+                        appeals.Add(appealDto);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning($"Error processing row {rowNumber}: {ex.Message}");
+                        errors.Add(new CsvUploadErrorDetail
+                        {
+                            RowNumber = rowNumber,
+                            ErrorMessage = $"Error processing row: {ex.Message}",
+                            RowData = MapRecordToDictionary(record)
+                        });
+                    }
+
+                    rowNumber++;
+                }
+            }
+
+            if (appeals.Count == 0)
+            {
+                _logger.LogWarning("No valid appeals found in CSV file");
+                return BadRequest(new ErrorResponse
+                {
+                    Success = false,
+                    Message = "No valid appeals found in CSV file",
+                    Errors = errors.Select(e => $"Row {e.RowNumber}: {e.ErrorMessage}").ToList()
+                });
+            }
+
+            // Bulk create appeals
+            var creationResults = await _appealService.CreateAppealsFromCsvAsync(appeals);
+
+            int successCount = creationResults.Count(r => r.Success);
+            int failureCount = creationResults.Count(r => !r.Success);
+
+            // Combine creation errors with validation errors
+            var allErrors = errors.ToList();
+            for (int i = 0; i < creationResults.Count; i++)
+            {
+                if (!creationResults[i].Success)
+                {
+                    allErrors.Add(new CsvUploadErrorDetail
+                    {
+                        RowNumber = errors.Count(e => e.RowNumber < (i + 2)) + i + 2,
+                        ErrorMessage = creationResults[i].ErrorMessage ?? "Failed to create appeal"
+                    });
+                }
+            }
+
+            _logger.LogInformation($"CSV upload completed: {successCount} successful, {failureCount} failed");
+
+            return Ok(new UploadAppealsFromCsvResponse
+            {
+                Success = failureCount == 0,
+                Message = $"CSV processing complete: {successCount} appeals created successfully{(failureCount > 0 ? $", {failureCount} failed" : "")}",
+                TotalRecords = appeals.Count,
+                SuccessfullyCreated = successCount,
+                FailedRecords = failureCount,
+                Errors = allErrors.Take(100).ToList() // Limit errors to 100 to keep response size reasonable
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading appeals from CSV");
+            return StatusCode(StatusCodes.Status500InternalServerError, new ErrorResponse
+            {
+                Success = false,
+                Message = "An error occurred while processing the CSV file"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Helper method to map CSV record to dictionary for error reporting.
+    /// </summary>
+    private static Dictionary<string, string> MapRecordToDictionary(AppealCsvRecord record)
+    {
+        return new Dictionary<string, string>
+        {
+            { "CategoryId", record.CategoryId.ToString() },
+            { "Title", record.Title ?? "" },
+            { "Description", record.Description ?? "" },
+            { "Status", record.Status ?? "" },
+            { "City", record.City ?? "" },
+            { "Street", record.Street ?? "" },
+            { "BuildingNumber", record.BuildingNumber ?? "" },
+            { "Latitude", record.Latitude.ToString() },
+            { "Longitude", record.Longitude.ToString() }
+        };
     }
 }
