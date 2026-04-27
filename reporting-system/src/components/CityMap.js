@@ -12,6 +12,8 @@ const containerStyle = {
   borderRadius: '8px',
 };
 
+const ICON_CACHE_VERSION = (process.env.REACT_APP_ICON_VERSION || '').trim();
+
 function CityMap({ user, onViewDetails }) {
   const [mapError, setMapError] = useState(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -180,6 +182,12 @@ function CityMap({ user, onViewDetails }) {
 
   const hasApiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY && process.env.REACT_APP_GOOGLE_MAPS_API_KEY.trim() !== '';
 
+  const withCacheBuster = (url) => {
+    if (!url || !ICON_CACHE_VERSION) return url;
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}v=${encodeURIComponent(ICON_CACHE_VERSION)}`;
+  };
+
   if (!hasApiKey) {
     return (
         <div className="city-map-container">
@@ -225,6 +233,7 @@ function CityMap({ user, onViewDetails }) {
                     const cleanPath = iconUrl.startsWith('/') ? iconUrl.slice(1) : iconUrl;
                     iconUrl = `${process.env.PUBLIC_URL || ''}/${cleanPath}`;
                   }
+                  iconUrl = withCacheBuster(iconUrl);
 
                   return (
                       <Marker
