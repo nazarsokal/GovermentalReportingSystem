@@ -502,6 +502,11 @@ public class CouncilEmployeeController : ControllerBase
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> CreatePoll([FromBody] CreatePollRequest request)
     {
+        if (!await IsCurrentUserCouncilHeadAsync())
+        {
+            return Forbid();
+        }
+
         if (!ModelState.IsValid)
         {
             _logger.LogWarning("Invalid poll request model state");
@@ -514,7 +519,13 @@ public class CouncilEmployeeController : ControllerBase
             return BadRequest(new { success = false, message = "Poll title is required" });
         }
 
-        if (request.Options == null || request.Options.Count < 2)
+        var cleanOptions = request.Options?
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? new List<string>();
+
+        if (cleanOptions.Count < 2)
         {
             _logger.LogWarning("Poll must have at least 2 options");
             return BadRequest(new { success = false, message = "Poll must have at least 2 options" });
@@ -526,7 +537,8 @@ public class CouncilEmployeeController : ControllerBase
         {
             CouncilId = councilId,
             Title = request.Title,
-            Description = request.Description
+            Description = request.Description,
+            Options = cleanOptions
         };
 
         var pollId = await _pollService.CreatePollAsync(createPollDto);
@@ -597,6 +609,11 @@ public class CouncilEmployeeController : ControllerBase
         {
             _logger.LogWarning("Invalid poll ID provided");
             return BadRequest(new { success = false, message = "Invalid poll ID" });
+        }
+
+        if (!await IsCurrentUserCouncilHeadAsync())
+        {
+            return Forbid();
         }
 
         await GetCurrentCouncilIdAsync(); // Verify permission

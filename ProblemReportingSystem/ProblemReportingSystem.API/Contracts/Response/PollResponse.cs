@@ -12,6 +12,10 @@ public class PollResponse
 
     public bool? IsActive { get; set; }
 
+    public bool UserHasVoted { get; set; }
+
+    public int TotalVotes { get; set; }
+
     public List<PollOptionResponse> Options { get; set; } = new List<PollOptionResponse>();
 }
 

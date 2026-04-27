@@ -12,7 +12,7 @@
 }
 
 .dashboard-header {
-  max-width: 1400px;
+  max-width: 1650px;
   margin: 0 auto 30px;
 }
 
@@ -33,15 +33,15 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
-  max-width: 1400px;
+  max-width: 1650px;
   margin: 0 auto 40px;
 }
 
 .main-content {
   display: grid;
-  grid-template-columns: 1fr 350px;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 520px);
   gap: 30px;
-  max-width: 1400px;
+  max-width: 1650px;
   margin: 0 auto;
 }
 
@@ -70,7 +70,7 @@
 
 .report-page,
 .stats-page {
-  max-width: 1400px;
+  max-width: 1650px;
   margin: 0 auto;
   background: white;
   padding: 40px;

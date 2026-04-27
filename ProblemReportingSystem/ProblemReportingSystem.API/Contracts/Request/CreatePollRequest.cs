@@ -9,3 +9,8 @@ public class CreatePollRequest
     public List<string> Options { get; set; } = new List<string>();
 }
 
+public class VotePollRequest
+{
+    public Guid OptionId { get; set; }
+}
+

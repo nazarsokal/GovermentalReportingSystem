@@ -24,6 +24,8 @@ public class CreatePollDto
     public string? Description { get; set; }
 
     public bool? IsActive { get; set; }
+
+    public List<string> Options { get; set; } = new();
 }
 
 public class UpdatePollDto
@@ -42,5 +44,9 @@ public class PollDetailsDto : PollDto
     public CityCouncilDto? Council { get; set; }
 
     public ICollection<PollOptionDetailsDto> PollOptions { get; set; } = new List<PollOptionDetailsDto>();
+
+    public bool UserHasVoted { get; set; }
+
+    public int TotalVotes { get; set; }
 }
 

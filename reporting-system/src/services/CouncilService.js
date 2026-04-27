@@ -166,6 +166,33 @@ class CouncilService {
             return { success: false, errors: [error.message || 'Failed to register employee.'] };
         }
     }
+
+    static async getCouncilPolls() {
+        try {
+            const response = await ApiService.get('/api/CouncilEmployee/polls');
+            return { success: true, data: Array.isArray(response) ? response : [] };
+        } catch (error) {
+            return { success: false, data: [], errors: [error.message || 'Failed to load polls.'] };
+        }
+    }
+
+    static async createPoll(pollData) {
+        try {
+            const response = await ApiService.post('/api/CouncilEmployee/polls', pollData);
+            return { success: true, data: response };
+        } catch (error) {
+            return { success: false, errors: [error.message || 'Failed to create poll.'] };
+        }
+    }
+
+    static async closePoll(pollId) {
+        try {
+            const response = await ApiService.patch(`/api/CouncilEmployee/polls/${pollId}/close`, {});
+            return { success: true, data: response };
+        } catch (error) {
+            return { success: false, errors: [error.message || 'Failed to close poll.'] };
+        }
+    }
 }
 
 export default CouncilService;

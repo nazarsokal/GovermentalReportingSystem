@@ -13,5 +13,9 @@ public interface IPollService
     Task<bool> ClosePollAsync(Guid pollId);
 
     Task<PollDetailsDto?> GetPollWithResultsAsync(Guid pollId);
+
+    Task<IEnumerable<PollDetailsDto>> GetActivePollsForDistrictAsync(string district, Guid userId);
+
+    Task<bool> VoteAsync(Guid pollId, Guid optionId, Guid userId);
 }
 

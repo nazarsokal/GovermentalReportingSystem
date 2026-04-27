@@ -5,6 +5,7 @@ import StatCard from '../components/StatCard';
 import RecentAppeals from '../components/RecentAppeals';
 import CityMap from '../components/CityMap';
 import AppealService from '../services/AppealService';
+import PollService from '../services/PollService';
 import ReportProblem from '../components/ReportProblem';
 import AppealDetails from '../components/AppealDetails';
 import AdminDashboard from '../components/AdminDashboard';
@@ -27,6 +28,11 @@ function DashboardPage({ user, onLogout }) {
   const [filterValue, setFilterValue] = useState(initial.value);
   const [stats, setStats] = useState({ total: 0, pending: 0, inProgress: 0, resolved: 0 });
   const [recentAppeals, setRecentAppeals] = useState([]);
+  const [districtPolls, setDistrictPolls] = useState([]);
+  const [pollsLoading, setPollsLoading] = useState(false);
+  const [expandedPollId, setExpandedPollId] = useState(null);
+  const [selectedPollOptions, setSelectedPollOptions] = useState({});
+  const [submittingPollId, setSubmittingPollId] = useState(null);
   const [analyticsAppeals, setAnalyticsAppeals] = useState([]);
   const [statsDrilldownStatus, setStatsDrilldownStatus] = useState('all');
   const [statsLoading, setStatsLoading] = useState(true);
@@ -83,6 +89,45 @@ function DashboardPage({ user, onLogout }) {
 
     if (filterValue.trim()) fetchData();
   }, [filterType, filterValue]);
+
+  useEffect(() => {
+    const fetchPolls = async () => {
+      setPollsLoading(true);
+      const result = await PollService.getDistrictPolls();
+      if (result.success) {
+        setDistrictPolls(result.polls || []);
+      } else {
+        setDistrictPolls([]);
+      }
+      setPollsLoading(false);
+    };
+
+    if (!isAdmin && !isCouncil) {
+      fetchPolls();
+    }
+  }, [isAdmin, isCouncil]);
+
+  const handleVote = async (pollId, optionId) => {
+    if (!optionId) {
+      alert('Please select an option first.');
+      return;
+    }
+
+    setSubmittingPollId(pollId);
+    const result = await PollService.vote(pollId, optionId);
+    if (!result.success) {
+      alert(result.errors?.[0] || 'Failed to submit vote');
+      setSubmittingPollId(null);
+      return;
+    }
+
+    const refreshed = await PollService.getDistrictPolls();
+    if (refreshed.success) {
+      setDistrictPolls(refreshed.polls || []);
+    }
+    setExpandedPollId(null);
+    setSubmittingPollId(null);
+  };
 
   return (
       <div className="dashboard-container">
@@ -171,7 +216,78 @@ function DashboardPage({ user, onLogout }) {
                   </div>
 
                   <div className="recent-section">
-                    <RecentAppeals appeals={recentAppeals} loading={statsLoading} onViewDetails={handleViewDetails} />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px', alignItems: 'start' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <RecentAppeals appeals={recentAppeals} loading={statsLoading} onViewDetails={handleViewDetails} />
+                      </div>
+                      <div style={{ minWidth: 0, background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '16px' }}>
+                        <h3 style={{ marginTop: 0, marginBottom: '8px' }}>District Polls</h3>
+                        {pollsLoading ? (
+                          <p style={{ margin: 0, color: '#6b7280' }}>Loading polls...</p>
+                        ) : districtPolls.length === 0 ? (
+                          <p style={{ margin: 0, color: '#6b7280' }}>No active polls in your district.</p>
+                        ) : (
+                          <div style={{ display: 'grid', gap: '12px' }}>
+                            {districtPolls.map(poll => {
+                              const isExpanded = expandedPollId === poll.pollId;
+                              const selectedOptionId = selectedPollOptions[poll.pollId] || '';
+                              return (
+                                <div key={poll.pollId} style={{ border: '1px solid #e5e7eb', borderRadius: '10px', padding: '12px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                                    <h4 style={{ margin: 0, fontSize: '15px' }}>{poll.title}</h4>
+                                    <button
+                                      type="button"
+                                      className="btn-secondary"
+                                      onClick={() => setExpandedPollId(isExpanded ? null : poll.pollId)}
+                                      style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}
+                                    >
+                                      {isExpanded ? 'Collapse' : 'Expand'}
+                                    </button>
+                                  </div>
+
+                                  {isExpanded && (
+                                    <div style={{ marginTop: '10px' }}>
+                                      <div style={{ display: 'grid', gap: '8px' }}>
+                                        {(poll.options || []).map(option => (
+                                          <label key={option.optionId} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                                            <input
+                                              type="radio"
+                                              name={`poll-${poll.pollId}`}
+                                              value={option.optionId}
+                                              checked={selectedOptionId === option.optionId}
+                                              onChange={(e) => setSelectedPollOptions(prev => ({ ...prev, [poll.pollId]: e.target.value }))}
+                                              disabled={poll.userHasVoted}
+                                            />
+                                            <span>{option.optionText}</span>
+                                          </label>
+                                        ))}
+                                      </div>
+
+                                      <div style={{ marginTop: '12px' }}>
+                                        <button
+                                          type="button"
+                                          className="btn-primary"
+                                          onClick={() => handleVote(poll.pollId, selectedOptionId)}
+                                          disabled={poll.userHasVoted || submittingPollId === poll.pollId || !selectedOptionId}
+                                        >
+                                          {submittingPollId === poll.pollId ? 'Submitting...' : 'Submit'}
+                                        </button>
+                                      </div>
+
+                                      {poll.userHasVoted && (
+                                        <p style={{ margin: '8px 0 0', color: '#059669', fontSize: '13px' }}>
+                                          You have already voted in this poll.
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </>

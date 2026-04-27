@@ -32,12 +32,16 @@ function CouncilDashboard() {
     const [councilName, setCouncilName] = useState(localCouncilName || '');
     const [employees, setEmployees] = useState([]);
     const [selectedEmployeeByAppeal, setSelectedEmployeeByAppeal] = useState({});
+    const [polls, setPolls] = useState([]);
+    const [pollForm, setPollForm] = useState({ title: '', description: '', options: ['', ''] });
     const [loading, setLoading] = useState(true);
 
-    // Стан модалки
+    // Стан модалок
     const [showRegisterModal, setShowRegisterModal] = useState(false);
+    const [showPollModal, setShowPollModal] = useState(false);
     const [employeeForm, setEmployeeForm] = useState({ fullName: '', email: '', password: '', position: '', role: 'CouncilEmployee', councilId: councilId });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isPollSubmitting, setIsPollSubmitting] = useState(false);
 
     useEffect(() => {
         console.log("CouncilDashboard змонтовано! Council ID:", councilId);
@@ -93,10 +97,69 @@ function CouncilDashboard() {
                 const trendResult = await CouncilService.getTrends();
                 if (trendResult.success && trendResult.data) setTrendData(trendResult.data);
             }
+
+            const pollsResult = await CouncilService.getCouncilPolls();
+            if (pollsResult.success) setPolls(pollsResult.data || []);
         } catch (error) {
             console.error("Помилка завантаження даних дашборду:", error);
         }
         setLoading(false);
+    };
+
+    const handlePollOptionChange = (index, value) => {
+        setPollForm(prev => {
+            const nextOptions = [...prev.options];
+            nextOptions[index] = value;
+            return { ...prev, options: nextOptions };
+        });
+    };
+
+    const addPollOption = () => {
+        setPollForm(prev => ({ ...prev, options: [...prev.options, ''] }));
+    };
+
+    const removePollOption = (index) => {
+        setPollForm(prev => {
+            if (prev.options.length <= 2) return prev;
+            return { ...prev, options: prev.options.filter((_, i) => i !== index) };
+        });
+    };
+
+    const handleCreatePoll = async (e) => {
+        e.preventDefault();
+        const cleanOptions = pollForm.options.map(o => o.trim()).filter(Boolean);
+        if (!pollForm.title.trim() || cleanOptions.length < 2) {
+            alert('Вкажіть назву опитування та мінімум 2 варіанти.');
+            return;
+        }
+
+        setIsPollSubmitting(true);
+        const result = await CouncilService.createPoll({
+            title: pollForm.title.trim(),
+            description: pollForm.description.trim(),
+            options: cleanOptions
+        });
+
+        if (!result.success) {
+            alert(result.errors?.[0] || 'Не вдалося створити опитування.');
+            setIsPollSubmitting(false);
+            return;
+        }
+
+        setPollForm({ title: '', description: '', options: ['', ''] });
+        setShowPollModal(false);
+        setIsPollSubmitting(false);
+        await fetchDashboardData();
+    };
+
+    const handleClosePoll = async (pollId) => {
+        const result = await CouncilService.closePoll(pollId);
+        if (!result.success) {
+            alert(result.errors?.[0] || 'Не вдалося закрити опитування.');
+            return;
+        }
+
+        await fetchDashboardData();
     };
 
     const handleAssignEmployee = async (appealId) => {
@@ -449,9 +512,54 @@ function CouncilDashboard() {
 
                     {/* TAB: Polls */}
                     {activeTab === 'polls' && (
-                        <div className="kanban-section" style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
-                            <h2>Створення опитувань</h2>
-                            <p>Модуль знаходиться в розробці.</p>
+                        <div className="kanban-section">
+                            <div className="kanban-header">
+                                <div>
+                                    <h2>Опитування ради</h2>
+                                    <p>Опитування бачать лише мешканці вашого району</p>
+                                </div>
+                                {isHead && (
+                                    <button
+                                        type="button"
+                                        className="btn-add-poll"
+                                        onClick={() => setShowPollModal(true)}
+                                    >
+                                        + Додати опитування
+                                    </button>
+                                )}
+                            </div>
+
+                            {polls.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '24px', color: '#6b7280' }}>
+                                    Опитувань поки немає.
+                                </div>
+                            ) : (
+                                <div style={{ display: 'grid', gap: '12px' }}>
+                                    {polls.map(poll => (
+                                        <div key={poll.pollId} className="kanban-card">
+                                            <div className="card-top">
+                                                <h4>{poll.title}</h4>
+                                                <span className="card-date">{poll.isActive ? 'Активне' : 'Закрите'}</span>
+                                            </div>
+                                            {poll.description && <p className="card-desc">{poll.description}</p>}
+                                            <ul style={{ margin: '8px 0 0', paddingLeft: '18px' }}>
+                                                {(poll.options || []).map(option => (
+                                                    <li key={option.optionId}>
+                                                        {option.optionText} - {option.voteCount} ({Number(option.votePercentage || 0).toFixed(1)}%)
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                            {isHead && poll.isActive && (
+                                                <div style={{ marginTop: '12px' }}>
+                                                    <button className="btn-secondary" type="button" onClick={() => handleClosePoll(poll.pollId)}>
+                                                        Закрити опитування
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -496,7 +604,7 @@ function CouncilDashboard() {
                 </>
             )}
 
-            {/* МОДАЛКА */}
+            {/* МОДАЛКА РЕЄСТРАЦІЇ ПРАЦІВНИКА */}
             {showRegisterModal && (
                 <div className="modal-overlay" onClick={() => setShowRegisterModal(false)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -509,6 +617,101 @@ function CouncilDashboard() {
                             <div className="modal-actions">
                                 <button type="button" className="btn-secondary" onClick={() => setShowRegisterModal(false)}>Скасувати</button>
                                 <button type="submit" className="btn-primary" disabled={isSubmitting}>{isSubmitting ? 'Збереження...' : 'Зареєструвати'}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* МОДАЛКА СТВОРЕННЯ ОПИТУВАННЯ */}
+            {showPollModal && (
+                <div className="modal-overlay" onClick={() => setShowPollModal(false)}>
+                    <div className="modal-content modal-poll" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>📋 Створити нове опитування</h2>
+                            <button
+                                type="button"
+                                className="modal-close-btn"
+                                onClick={() => setShowPollModal(false)}
+                                title="Закрити"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <form onSubmit={handleCreatePoll}>
+                            <div className="form-group">
+                                <label>Назва опитування <span className="required">*</span></label>
+                                <input
+                                    type="text"
+                                    value={pollForm.title}
+                                    onChange={(e) => setPollForm(prev => ({ ...prev, title: e.target.value }))}
+                                    placeholder="Наприклад: Яку інфраструктуру покращити в першу чергу?"
+                                    required
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label>Опис (необов'язково)</label>
+                                <textarea
+                                    value={pollForm.description}
+                                    onChange={(e) => setPollForm(prev => ({ ...prev, description: e.target.value }))}
+                                    placeholder="Додайте більше деталей про опитування..."
+                                    rows="3"
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label>Варіанти відповідей <span className="required">*</span></label>
+                                <div className="poll-options-container">
+                                    {pollForm.options.map((option, index) => (
+                                        <div key={index} className="poll-option-item">
+                                            <span className="option-number">{index + 1}</span>
+                                            <input
+                                                type="text"
+                                                value={option}
+                                                onChange={(e) => handlePollOptionChange(index, e.target.value)}
+                                                placeholder={`Варіант ${index + 1}`}
+                                                required={index < 2}
+                                                className="option-input"
+                                            />
+                                            {pollForm.options.length > 2 && (
+                                                <button
+                                                    type="button"
+                                                    className="btn-remove-option"
+                                                    onClick={() => removePollOption(index)}
+                                                    title="Видалити варіант"
+                                                >
+                                                    ✕
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                <button
+                                    type="button"
+                                    className="btn-add-option"
+                                    onClick={addPollOption}
+                                >
+                                    + Додати ще варіант
+                                </button>
+                            </div>
+
+                            <div className="modal-actions modal-poll-actions">
+                                <button
+                                    type="button"
+                                    className="btn-secondary"
+                                    onClick={() => setShowPollModal(false)}
+                                    disabled={isPollSubmitting}
+                                >
+                                    Скасувати
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="btn-primary btn-create-poll"
+                                    disabled={isPollSubmitting}
+                                >
+                                    {isPollSubmitting ? '⏳ Створення...' : '✓ Створити опитування'}
+                                </button>
                             </div>
                         </form>
                     </div>
