@@ -22,10 +22,48 @@ public class ProblemService : IProblemService
     {
         var problem = _mapper.Map<Problem>(createProblemDto);
         
+        // Ensure ProblemId is unique - generate new one if not set
+        if (problem.ProblemId == Guid.Empty)
+        {
+            problem.ProblemId = Guid.NewGuid();
+        }
+
+        // Ensure Address has a unique ID
+        if (problem.Address != null && problem.Address.AddressId == Guid.Empty)
+        {
+            problem.Address.AddressId = Guid.NewGuid();
+        }
+        
+        // Assign optional address fields from DTO
+        if (problem.Address != null)
+        {
+            if (!string.IsNullOrEmpty(createProblemDto.District))
+                problem.Address.District = createProblemDto.District;
+            if (!string.IsNullOrEmpty(createProblemDto.Oblast))
+                problem.Address.Oblast = createProblemDto.Oblast;
+            if (!string.IsNullOrEmpty(createProblemDto.Postcode))
+                problem.Address.Postcode = createProblemDto.Postcode;
+        }
+        
         if(string.IsNullOrEmpty(problem.Address.City) || string.IsNullOrEmpty(problem.Address.Street))
         {
             var address = await _geolocateService.GetAddressFromCoordinatesAsync(problem.Address.Latitude , problem.Address.Longitude);
             problem.Address = _mapper.Map<Address>(address);
+            
+            // Ensure the new address also has a unique ID
+            if (problem.Address.AddressId == Guid.Empty)
+            {
+                problem.Address.AddressId = Guid.NewGuid();
+            }
+            
+            // Preserve user-provided optional fields from DTO
+            if (!string.IsNullOrEmpty(createProblemDto.District))
+                problem.Address.District = createProblemDto.District;
+            if (!string.IsNullOrEmpty(createProblemDto.Oblast))
+                problem.Address.Oblast = createProblemDto.Oblast;
+            if (!string.IsNullOrEmpty(createProblemDto.Postcode))
+                problem.Address.Postcode = createProblemDto.Postcode;
+            
             problem.Address.Latitude = createProblemDto.Latitude;
             problem.Address.Longitude = createProblemDto.Longitude;
         }
@@ -34,6 +72,11 @@ public class ProblemService : IProblemService
         {
             foreach (var photo in problem.ProblemPhotos)
             {
+                // Ensure each photo has a unique ID
+                if (photo.PhotoId == Guid.Empty)
+                {
+                    photo.PhotoId = Guid.NewGuid();
+                }
                 photo.ProblemId = problem.ProblemId;
             }
         }

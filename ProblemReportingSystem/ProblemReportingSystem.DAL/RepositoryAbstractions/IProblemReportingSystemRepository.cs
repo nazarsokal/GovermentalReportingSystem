@@ -60,9 +60,22 @@ public interface IProblemReportingSystemRepository<T> where T : class
     /// <returns>The count of entities</returns>
     Task<int> CountAsync();
 
-    /// <summary>
-    /// Save changes to the database
-    /// </summary>
-    /// <returns>The number of entities affected</returns>
-    Task<int> SaveChangesAsync();
+     /// <summary>
+     /// Save changes to the database
+     /// </summary>
+     /// <returns>The number of entities affected</returns>
+     Task<int> SaveChangesAsync();
+
+     /// <summary>
+     /// Detach an entity from the context to free up tracking
+     /// Useful when loading many entities in a loop to prevent tracking conflicts
+     /// </summary>
+     /// <param name="entity">The entity to detach</param>
+     void DetachEntity(T entity);
+
+     /// <summary>
+     /// Clear all tracked entities from the context
+     /// Use with caution as this disconnects all entities
+     /// </summary>
+     void ClearTrackedEntities();
 }

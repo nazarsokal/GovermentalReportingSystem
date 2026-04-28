@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { GoogleMap, Marker } from '@react-google-maps/api';
 import AddressService from '../services/AddressService';
 import AppealService from '../services/AppealService';
@@ -8,7 +8,7 @@ const DEFAULT_COORDINATES = { lat: 50.4501, lng: 30.5234 };
 
 const containerStyle = {
   width: '100%',
-  height: '350px',
+  height: '100%',
   borderRadius: '8px',
 };
 
@@ -27,10 +27,12 @@ function CityMap({ user, onViewDetails }) {
   const [selectedAppeal, setSelectedAppeal] = useState(null);
   const [appealSummary, setAppealSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [currentZoom, setCurrentZoom] = useState(14);
   const mapRef = useRef(null);
   const appealsFetchedRef = useRef(false);
   const centerSetRef = useRef(false);
   const lastBoundsRequestRef = useRef(null);
+  const isUserZoomingRef = useRef(false);
 
   useEffect(() => {
     if (centerSetRef.current || !districtCoordinates || Object.keys(districtCoordinates).length === 0) {
@@ -121,7 +123,7 @@ function CityMap({ user, onViewDetails }) {
   }, [mapLoaded, districtCoordinates]);
 
   const handleMapMove = () => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || isUserZoomingRef.current) return;
 
     const currentCenter = mapRef.current.getCenter();
     if (currentCenter) {
@@ -129,17 +131,41 @@ function CityMap({ user, onViewDetails }) {
         lat: currentCenter.lat(),
         lng: currentCenter.lng()
       });
+      setCurrentZoom(mapRef.current.getZoom());
     }
 
     fetchAppealsForCurrentBounds();
   };
 
-  const mapOptions = {
-    zoom: 12,
+   const handleZoomIn = () => {
+    if (mapRef.current) {
+      isUserZoomingRef.current = true;
+      const newZoom = mapRef.current.getZoom() + 1;
+      mapRef.current.setZoom(newZoom);
+      setCurrentZoom(newZoom);
+      setTimeout(() => { isUserZoomingRef.current = false; }, 300);
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (mapRef.current) {
+      isUserZoomingRef.current = true;
+      const newZoom = Math.max(mapRef.current.getZoom() - 1, 0);
+      mapRef.current.setZoom(newZoom);
+      setCurrentZoom(newZoom);
+      setTimeout(() => { isUserZoomingRef.current = false; }, 300);
+    }
+  };
+
+   const mapOptions = useMemo(() => ({
+    zoom: currentZoom,
     mapTypeId: 'roadmap',
     fullscreenControl: true,
-    zoomControl: true,
+    zoomControl: false,
     streetViewControl: false,
+    mapTypeControl: true,
+    scaleControl: true,
+    gestureHandling: 'greedy',
     styles: [
       { featureType: 'administrative', elementType: 'labels.text.fill', stylers: [{ color: '#444444' }] },
       { featureType: 'landscape', elementType: 'all', stylers: [{ color: '#f2f2f2' }] },
@@ -150,7 +176,7 @@ function CityMap({ user, onViewDetails }) {
       { featureType: 'transit', elementType: 'all', stylers: [{ visibility: 'off' }] },
       { featureType: 'water', elementType: 'all', stylers: [{ color: '#46bcda' }, { visibility: 'on' }] }
     ]
-  };
+  }), [currentZoom]);
 
   const handleMapLoad = (map) => {
     mapRef.current = map;
@@ -216,18 +242,19 @@ function CityMap({ user, onViewDetails }) {
             </div>
         )}
 
-        {!mapError && !coordinatesLoading && (
-            <>
-              <GoogleMap
-                  mapContainerStyle={containerStyle}
-                  center={mapCenter || DEFAULT_COORDINATES}
-                  zoom={12}
-                  options={mapOptions}
-                  onLoad={handleMapLoad}
-                  onError={handleMapError}
-                  onIdle={handleMapMove}
-              >
-                {appeals.map((appeal) => {
+         {!mapError && !coordinatesLoading && (
+             <>
+               <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                 <GoogleMap
+                     mapContainerStyle={containerStyle}
+                     center={mapCenter || DEFAULT_COORDINATES}
+                     zoom={currentZoom}
+                     options={mapOptions}
+                     onLoad={handleMapLoad}
+                     onError={handleMapError}
+                     onIdle={handleMapMove}
+                 >
+                   {appeals.map((appeal) => {
                   let iconUrl = appeal.categoryIconUrl;
                   if (iconUrl && !iconUrl.startsWith('http')) {
                     const cleanPath = iconUrl.startsWith('/') ? iconUrl.slice(1) : iconUrl;
@@ -249,11 +276,85 @@ function CityMap({ user, onViewDetails }) {
                           onClick={() => handleMarkerClick(appeal)}
                       />
                   );
-                })}
-              </GoogleMap>
+                   })}
+                 </GoogleMap>
 
-              {!mapLoaded && (
-                  <div className="map-loading-overlay">
+                 {/* Custom Zoom Buttons */}
+                 <div style={{
+                   position: 'absolute',
+                   bottom: '16px',
+                   right: '16px',
+                   zIndex: 5,
+                   display: 'flex',
+                   flexDirection: 'column',
+                   gap: '8px'
+                 }}>
+                   <button
+                       onClick={handleZoomIn}
+                       style={{
+                         width: '40px',
+                         height: '40px',
+                         borderRadius: '8px',
+                         border: '1px solid rgba(0, 212, 170, 0.2)',
+                         background: 'white',
+                         cursor: 'pointer',
+                         fontSize: '18px',
+                         fontWeight: 'bold',
+                         color: '#00d4aa',
+                         transition: 'all 0.2s ease',
+                         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                         display: 'flex',
+                         alignItems: 'center',
+                         justifyContent: 'center'
+                       }}
+                       onMouseOver={(e) => {
+                         e.target.style.background = '#f0f0f0';
+                         e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                       }}
+                       onMouseOut={(e) => {
+                         e.target.style.background = 'white';
+                         e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                       }}
+                       title="Zoom in"
+                   >
+                     +
+                   </button>
+
+                   <button
+                       onClick={handleZoomOut}
+                       style={{
+                         width: '40px',
+                         height: '40px',
+                         borderRadius: '8px',
+                         border: '1px solid rgba(0, 212, 170, 0.2)',
+                         background: 'white',
+                         cursor: 'pointer',
+                         fontSize: '20px',
+                         fontWeight: 'bold',
+                         color: '#00d4aa',
+                         transition: 'all 0.2s ease',
+                         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                         display: 'flex',
+                         alignItems: 'center',
+                         justifyContent: 'center'
+                       }}
+                       onMouseOver={(e) => {
+                         e.target.style.background = '#f0f0f0';
+                         e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                       }}
+                       onMouseOut={(e) => {
+                         e.target.style.background = 'white';
+                         e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                       }}
+                       title="Zoom out"
+                   >
+                     −
+                   </button>
+                 </div>
+               </div>
+
+               {!mapLoaded && (
+                   <div className="map-loading-overlay">
                     <div className="loading-spinner"></div>
                     <p>Loading map...</p>
                   </div>

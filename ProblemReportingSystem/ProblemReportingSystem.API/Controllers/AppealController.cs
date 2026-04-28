@@ -1296,23 +1296,32 @@ public class AppealController : ControllerBase
                         }
 
                         // Create appeal DTO
-                        var appealDto = new AppealDto
-                        {
-                            UserId = defaultUserId,
-                            ProblemDto = new CreateProblemDto
-                            {
-                                UserId = defaultUserId,
-                                CategoryId = record.CategoryId,
-                                Title = record.Title,
-                                Description = record.Description,
-                                Status = record.Status ?? "Pending",
-                                City = record.City,
-                                Street = record.Street,
-                                BuildingNumber = record.BuildingNumber,
-                                Latitude = record.Latitude,
-                                Longitude = record.Longitude
-                            }
-                        };
+                          // Use CSV UserId if provided, otherwise use defaultUserId
+                          var appealUserId = record.UserId ?? (defaultUserId != Guid.Empty ? defaultUserId : Guid.Empty);
+                          
+                          // Trim and validate status - preserve CSV value or default to Pending
+                          var status = string.IsNullOrWhiteSpace(record.Status) ? "Pending" : record.Status.Trim();
+                          
+                          var appealDto = new AppealDto
+                          {
+                              UserId = appealUserId,
+                              ProblemDto = new CreateProblemDto
+                              {
+                                  UserId = appealUserId,
+                                  CategoryId = record.CategoryId,
+                                  Title = record.Title,
+                                  Description = record.Description,
+                                  Status = status,
+                                  City = record.City,
+                                  Street = record.Street,
+                                  BuildingNumber = record.BuildingNumber,
+                                  District = record.District,
+                                  Oblast = record.Oblast,
+                                  Postcode = record.Postcode,
+                                  Latitude = record.Latitude,
+                                  Longitude = record.Longitude
+                              }
+                          };
 
                         appeals.Add(appealDto);
                     }

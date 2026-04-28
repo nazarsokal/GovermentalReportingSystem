@@ -67,13 +67,16 @@ public class DtoMappingProfile : Profile
             .ForMember(dest => dest.Photos, opt => opt.MapFrom(src => src.ProblemPhotos));
         CreateMap<CreateProblemDto, Problem>()
             .ForMember(dest => dest.ProblemId, opt => opt.MapFrom(src => Guid.NewGuid()))
-            // Мапимо плоскі поля адреси з DTO у навігаційну властивість Address
+            //ddress
             .ForMember(dest => dest.Address, opt => opt.MapFrom(src => new Address
             {
                 AddressId = Guid.NewGuid(), // Генеруємо ID для нової адреси
                 City = src.City,
                 Street = src.Street,
                 BuildingNumber = src.BuildingNumber,
+                District = src.District,
+                Oblast = src.Oblast,
+                Postcode = src.Postcode,
                 Latitude = src.Latitude,
                 Longitude = src.Longitude
             }))
@@ -86,8 +89,8 @@ public class DtoMappingProfile : Profile
                     ContentType = p.ContentType
                 }).ToList()
                 : new List<ProblemPhoto>()))
-            // Дефолтний статус
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => "Pending"));
+            // Использовать статус из источника или "Pending" по умолчанию
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => string.IsNullOrWhiteSpace(src.Status) ? "Pending" : src.Status));
         CreateMap<UpdateProblemDto, Problem>();
        
         // Appeal Mappings

@@ -29,6 +29,17 @@ public class AppealService : IAppealService
             throw new ArgumentNullException(nameof(createAppealDto));
 
         var appeal = _mapper.Map<Appeal>(createAppealDto);
+        
+        // Ensure AppealId is unique - generate new one if not set
+        if (appeal.AppealId == Guid.Empty)
+        {
+            appeal.AppealId = Guid.NewGuid();
+        }
+        
+        // Set timestamps
+        appeal.CreatedAt = DateTime.UtcNow;
+        appeal.UpdatedAt = DateTime.UtcNow;
+        
         var problem = await _problemService.CreateProblem(createAppealDto.ProblemDto);
         appeal.Problem = problem;
         
@@ -43,22 +54,41 @@ public class AppealService : IAppealService
             throw new ArgumentException("Appeals list cannot be null or empty", nameof(appeals));
 
         var results = new List<(bool Success, Guid? AppealId, string? ErrorMessage)>();
+        int batchSize = 10; // Process in batches of 10 to manage memory and context tracking
+        int successCount = 0;
 
-        foreach (var appealDto in appeals)
+        for (int i = 0; i < appeals.Count; i++)
         {
+            var appealDto = appeals[i];
             try
             {
                 var appealId = await CreateAppealAsync(appealDto);
                 results.Add((true, appealId, null));
                 _logger.LogInformation($"CSV Appeal created successfully with ID: {appealId}");
+                successCount++;
+
+                // Clear context every batchSize records to prevent tracking conflicts
+                if ((i + 1) % batchSize == 0)
+                {
+                    _logger.LogInformation($"Processed {i + 1} appeals, clearing context to prevent tracking issues");
+                    _appealRepository.ClearTrackedEntities();
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error creating appeal for user {appealDto.UserId}");
                 results.Add((false, null, ex.Message));
+
+                // Clear context on error to allow next record to be processed
+                try
+                {
+                    _appealRepository.ClearTrackedEntities();
+                }
+                catch { /* Ignore errors during context cleanup */ }
             }
         }
 
+        _logger.LogInformation($"CSV import completed: {successCount} appeals created successfully, {results.Count - successCount} failed");
         return results;
     }
 

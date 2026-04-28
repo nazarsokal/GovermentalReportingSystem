@@ -134,13 +134,39 @@ public class ProblemReportingSystemRepository<T> : IProblemReportingSystemReposi
         return await _dbSet.CountAsync();
     }
 
-    /// <summary>
-    /// Save changes to the database
-    /// </summary>
-    /// <returns>The number of entities affected</returns>
-    public async Task<int> SaveChangesAsync()
-    {
-        return await _context.SaveChangesAsync();
-    }
+     /// <summary>
+     /// Save changes to the database
+     /// </summary>
+     /// <returns>The number of entities affected</returns>
+     public async Task<int> SaveChangesAsync()
+     {
+         return await _context.SaveChangesAsync();
+     }
+
+     /// <summary>
+     /// Detach an entity from the context to free up tracking
+     /// Useful when loading many entities in a loop to prevent tracking conflicts
+     /// </summary>
+     /// <param name="entity">The entity to detach</param>
+     public void DetachEntity(T entity)
+     {
+         if (entity == null)
+             return;
+
+         var entry = _context.Entry(entity);
+         if (entry != null)
+         {
+             entry.State = EntityState.Detached;
+         }
+     }
+
+     /// <summary>
+     /// Clear all tracked entities from the context
+     /// Use with caution as this disconnects all entities
+     /// </summary>
+     public void ClearTrackedEntities()
+     {
+         _context.ChangeTracker.Clear();
+     }
 }
 

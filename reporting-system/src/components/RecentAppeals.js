@@ -11,15 +11,15 @@ function RecentAppeals({ appeals = null, loading = false, onViewDetails }) {
       setLocalAppeals(appeals);
     } else if (appeals === null) {
       const fetchAppeals = async () => {
-        setLocalLoading(true);
-        const result = await AppealService.getRecentAppeals(5);
-        if (result.success) {
-          setLocalAppeals(result.appeals);
-        } else {
-          setLocalAppeals([]);
-        }
-        setLocalLoading(false);
-      };
+         setLocalLoading(true);
+         const result = await AppealService.getRecentAppeals(10);
+         if (result.success) {
+           setLocalAppeals(result.appeals);
+         } else {
+           setLocalAppeals([]);
+         }
+         setLocalLoading(false);
+       };
       fetchAppeals();
     }
   }, [appeals]);

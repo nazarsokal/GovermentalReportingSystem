@@ -1,10 +1,10 @@
-CategoryId,Title,Description,Status,City,Street,BuildingNumber,Latitude,Longitude
-550e8400-e29b-41d4-a716-446655440000,Pothole on Main Street,Large pothole affecting traffic flow and causing vehicles to swerve,Pending,Springfield,Main St,123,39.7817,-89.2500
-550e8400-e29b-41d4-a716-446655440001,Broken Street Light,Street light at the intersection not working since last week,,Springfield,Oak Ave,45,39.7819,-89.2501
-550e8400-e29b-41d4-a716-446655440000,Trash Collection Issue,Garbage not collected for 3 weeks causing overflow,In Progress,Springfield,Elm Road,89,39.7815,-89.2502
-550e8400-e29b-41d4-a716-446655440002,Graffiti on Community Center,Graffiti covering the entire south wall,Pending,Springfield,Park Street,200,39.7820,-89.2503
-550e8400-e29b-41d4-a716-446655440001,Malfunctioning Traffic Light,Traffic light stuck on red causing traffic congestion,Resolved,Springfield,Maple Drive,150,39.7818,-89.2499
-550e8400-e29b-41d4-a716-446655440000,Uneven Sidewalk,Sidewalk cracked and uneven causing trip hazard,Pending,Springfield,Pine Street,75,39.7816,-89.2504
-550e8400-e29b-41d4-a716-446655440003,Water Leak from Underground Pipe,Water pooling in the intersection constantly,In Progress,Springfield,Cedar Lane,88,39.7821,-89.2505
-550e8400-e29b-41d4-a716-446655440001,Missing Street Sign,Stop sign missing from intersection,Pending,Springfield,Birch Avenue,110,39.7814,-89.2498
+UserId,CategoryId,Title,Description,Status,City,Street,BuildingNumber,District,Oblast,Postcode,Latitude,Longitude
+550e8400-e29b-41d4-a716-446655440100,550e8400-e29b-41d4-a716-446655440000,Pothole on Main Street,Large pothole affecting traffic flow and causing vehicles to swerve,Pending,Springfield,Main St,123,District 1,Western Oblast,12345,39.7817,-89.2500
+550e8400-e29b-41d4-a716-446655440101,550e8400-e29b-41d4-a716-446655440001,Broken Street Light,Street light at the intersection not working since last week,,Springfield,Oak Ave,45,District 2,Western Oblast,12346,39.7819,-89.2501
+550e8400-e29b-41d4-a716-446655440100,550e8400-e29b-41d4-a716-446655440000,Trash Collection Issue,Garbage not collected for 3 weeks causing overflow,In Progress,Springfield,Elm Road,89,District 1,Western Oblast,12347,39.7815,-89.2502
+550e8400-e29b-41d4-a716-446655440102,550e8400-e29b-41d4-a716-446655440002,Graffiti on Community Center,Graffiti covering the entire south wall,Pending,Springfield,Park Street,200,District 3,Central Oblast,12348,39.7820,-89.2503
+550e8400-e29b-41d4-a716-446655440101,550e8400-e29b-41d4-a716-446655440001,Malfunctioning Traffic Light,Traffic light stuck on red causing traffic congestion,Resolved,Springfield,Maple Drive,150,District 2,Western Oblast,12349,39.7818,-89.2499
+550e8400-e29b-41d4-a716-446655440100,550e8400-e29b-41d4-a716-446655440000,Uneven Sidewalk,Sidewalk cracked and uneven causing trip hazard,Pending,Springfield,Pine Street,75,District 1,Western Oblast,12350,39.7816,-89.2504
+550e8400-e29b-41d4-a716-446655440103,550e8400-e29b-41d4-a716-446655440003,Water Leak from Underground Pipe,Water pooling in the intersection constantly,In Progress,Springfield,Cedar Lane,88,District 4,Eastern Oblast,12351,39.7821,-89.2505
+550e8400-e29b-41d4-a716-446655440101,550e8400-e29b-41d4-a716-446655440001,Missing Street Sign,Stop sign missing from intersection,Pending,Springfield,Birch Avenue,110,District 2,Western Oblast,12352,39.7814,-89.2498
 

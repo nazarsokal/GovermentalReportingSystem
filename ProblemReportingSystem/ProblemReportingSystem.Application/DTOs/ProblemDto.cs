@@ -36,6 +36,9 @@ public class CreateProblemDto
     public string? City { get; set; }
     public string? Street { get; set; }
     public string? BuildingNumber { get; set; }
+    public string? District { get; set; }
+    public string? Oblast { get; set; }
+    public string? Postcode { get; set; }
     public decimal Latitude { get; set; }
     public decimal Longitude { get; set; }
 

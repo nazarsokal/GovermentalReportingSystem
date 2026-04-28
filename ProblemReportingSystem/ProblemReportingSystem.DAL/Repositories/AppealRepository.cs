@@ -17,8 +17,11 @@ public class AppealRepository : ProblemReportingSystemRepository<Appeal>, IAppea
     public async Task<IEnumerable<Appeal>> GetAppealsByCouncilAsync(Guid councilId)
     {
         var foundCouncil = await _context.CityCouncils.Where(c => c.CouncilId == councilId).Include(p => p.Address).FirstOrDefaultAsync();
+        
+        if (foundCouncil?.Address == null)
+            return new List<Appeal>();
+            
         return await _context.Appeals
-            .Where(a => foundCouncil != null && foundCouncil.Address != null && a.Problem.Address.District == foundCouncil.Address.District)
             .Include(a => a.Problem)
             .ThenInclude(p => p.Address)
             .Include(a => a.Problem)
@@ -27,6 +30,7 @@ public class AppealRepository : ProblemReportingSystemRepository<Appeal>, IAppea
             .ThenInclude(p => p.ProblemPhotos)
             .Include(a => a.AssignedEmployee)
             .Include(a => a.User)
+            .Where(a => a.Problem != null && a.Problem.Address != null && a.Problem.Address.District == foundCouncil.Address.District)
             .ToListAsync();
     }
 

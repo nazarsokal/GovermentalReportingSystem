@@ -226,9 +226,38 @@
 
 .kanban-board {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(380px, 1fr));
     gap: 16px;
     align-items: start;
+    overflow-x: auto;
+    padding-bottom: 12px;
+    margin-bottom: -12px;
+}
+
+.kanban-board::-webkit-scrollbar {
+    height: 8px;
+}
+
+.kanban-board::-webkit-scrollbar-track {
+    background: rgba(0, 212, 170, 0.05);
+    border-radius: 4px;
+}
+
+.kanban-board::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, var(--primary), #00b897);
+    border-radius: 4px;
+    transition: background 0.3s ease;
+}
+
+.kanban-board::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #00b897, #008070);
+}
+
+.kanban-column {
+    display: flex;
+    flex-direction: column;
+    min-width: 380px;
+    flex-shrink: 0;
 }
 
 .column-header {
@@ -264,6 +293,28 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
+    overflow-y: auto;
+    max-height: 500px;
+    padding-right: 6px;
+}
+
+.column-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.column-body::-webkit-scrollbar-track {
+    background: rgba(0, 212, 170, 0.05);
+    border-radius: 3px;
+}
+
+.column-body::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    border-radius: 3px;
+    transition: background 0.3s ease;
+}
+
+.column-body::-webkit-scrollbar-thumb:hover {
+    background: var(--primary);
 }
 
 /* Kanban Card */

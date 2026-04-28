@@ -72,7 +72,7 @@ function DashboardPage({ user, onLogout }) {
             issue: appeal.Description || appeal.description || '',
             status: appeal.Status || appeal.status || 'Pending',
             date: appeal.DatePublished ? new Date(appeal.DatePublished).toLocaleDateString() : new Date().toLocaleDateString()
-          })).slice(0, 5);
+          })).slice(0, 10);
           setRecentAppeals(transformed);
         } else {
           setAnalyticsAppeals([]);
