@@ -2,9 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleMap, Marker, Autocomplete, useJsApiLoader } from '@react-google-maps/api';
 import AppealService from '../services/AppealService';
 import '../styles/ReportProblem.css';
-
-// Defining outside component to avoid re-renders
-const libraries = ['places'];
+import { googleMapsLoaderOptions } from '../constants/googleMaps';
 
 const mapContainerStyle = {
     width: '100%',
@@ -29,8 +27,7 @@ function ReportProblem({ user, onSuccess }) {
     const [autocomplete, setAutocomplete] = useState(null);
 
     const { isLoaded, loadError } = useJsApiLoader({
-        googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-        libraries,
+        ...googleMapsLoaderOptions
     });
 
     const [formData, setFormData] = useState({

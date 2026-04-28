@@ -67,3 +67,43 @@ public class CreateCityCouncilResponse
 
     public string CouncilName { get; set; } = null!;
 }
+
+public class CreateUserResponse
+{
+    public bool Success { get; set; }
+
+    public string Message { get; set; } = null!;
+
+    public Guid UserId { get; set; }
+
+    public string FullName { get; set; } = null!;
+
+    public string Email { get; set; } = null!;
+}
+
+public class UpdateUserResponse
+{
+    public bool Success { get; set; }
+
+    public string Message { get; set; } = null!;
+
+    public UserListItemDto User { get; set; } = null!;
+}
+
+public class UpdateCityCouncilResponse
+{
+    public bool Success { get; set; }
+
+    public string Message { get; set; } = null!;
+
+    public Guid CouncilId { get; set; }
+
+    public string CouncilName { get; set; } = null!;
+}
+
+public class DeleteResponse
+{
+    public bool Success { get; set; }
+
+    public string Message { get; set; } = null!;
+}

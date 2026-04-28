@@ -4,6 +4,7 @@ import { LoadScript } from '@react-google-maps/api';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import AuthService from './services/AuthService';
+import { googleMapsLibraries } from './constants/googleMaps';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -104,7 +105,9 @@ function App() {
       {hasApiKey ? (
         <LoadScript
           googleMapsApiKey={apiKey}
-          libraries={['places']}
+          libraries={googleMapsLibraries}
+          language="uk"
+          region="UA"
           onError={handleScriptError}
           onLoad={handleScriptLoad}
         >

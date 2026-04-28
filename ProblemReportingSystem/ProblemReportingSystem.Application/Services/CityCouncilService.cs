@@ -288,4 +288,79 @@ public class CityCouncilService : ICityCouncilService
 
         return values;
     }
+
+    /// <summary>
+    /// Updates an existing city council.
+    /// </summary>
+    public async Task<CityCouncilDetailsDto> UpdateCityCouncilAsync(UpdateCityCouncilDto updateCityCouncilDto)
+    {
+        if (updateCityCouncilDto == null)
+            throw new ArgumentNullException(nameof(updateCityCouncilDto));
+
+        if (updateCityCouncilDto.CouncilId == Guid.Empty)
+            throw new ArgumentException("Council ID cannot be empty", nameof(updateCityCouncilDto.CouncilId));
+
+        if (string.IsNullOrWhiteSpace(updateCityCouncilDto.Name))
+            throw new ArgumentException("Council name cannot be null or empty", nameof(updateCityCouncilDto.Name));
+
+        var council = await _councilRepository.GetByIdAsync(updateCityCouncilDto.CouncilId);
+        if (council == null)
+            throw new InvalidOperationException($"Council with ID '{updateCityCouncilDto.CouncilId}' not found");
+
+        // Check if another council with same name exists
+        if (!council.Name.Equals(updateCityCouncilDto.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            var existingCouncil = await _councilRepository.GetCouncilByNameAsync(updateCityCouncilDto.Name);
+            if (existingCouncil != null)
+                throw new InvalidOperationException($"Council with name '{updateCityCouncilDto.Name}' already exists");
+        }
+
+        council.Name = updateCityCouncilDto.Name;
+        council.ContactEmail = updateCityCouncilDto.ContactEmail;
+
+        // Update address if AddressId is provided
+        if (updateCityCouncilDto.AddressId.HasValue && updateCityCouncilDto.AddressId != council.AddressId)
+        {
+            var newAddress = await _addressRepository.GetByIdAsync(updateCityCouncilDto.AddressId.Value);
+            if (newAddress == null)
+                throw new InvalidOperationException($"Address with ID '{updateCityCouncilDto.AddressId}' not found");
+
+            council.AddressId = updateCityCouncilDto.AddressId.Value;
+        }
+
+        await _councilRepository.UpdateAsync(council);
+        _logger.LogInformation($"City council updated successfully with ID: {council.CouncilId}");
+
+        var updatedCouncil = await _councilRepository.GetCouncilWithDetailsAsync(council.CouncilId);
+        return _mapper.Map<CityCouncilDetailsDto>(updatedCouncil!);
+    }
+
+    /// <summary>
+    /// Deletes a city council.
+    /// </summary>
+    public async Task<bool> DeleteCityCouncilAsync(Guid councilId)
+    {
+        if (councilId == Guid.Empty)
+            throw new ArgumentException("Council ID cannot be empty", nameof(councilId));
+
+        var council = await _councilRepository.GetByIdAsync(councilId);
+        if (council == null)
+        {
+            _logger.LogWarning($"City council with ID {councilId} not found for deletion");
+            return false;
+        }
+
+        // Delete all council employees associated with this council
+        var employees = await _councilEmployeeRepository.GetCouncilEmployeesAsync(councilId);
+        foreach (var employee in employees)
+        {
+            await _councilEmployeeRepository.DeleteAsync(employee);
+        }
+
+        // Delete the council
+        await _councilRepository.DeleteAsync(council);
+        _logger.LogInformation($"City council deleted successfully with ID: {councilId}");
+
+        return true;
+    }
 }

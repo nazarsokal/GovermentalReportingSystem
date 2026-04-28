@@ -1,4 +1,3 @@
-using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ProblemReportingSystem.API.Contracts.Response;
@@ -79,6 +78,361 @@ public class AdminController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while retrieving users"
+            });
+        }
+    }
+
+    /// <summary>
+    /// GET /api/admin/users/{userId}
+    /// Retrieves detailed information about a specific user.
+    /// </summary>
+    /// <param name="userId">The ID of the user to retrieve</param>
+    /// <returns>User details</returns>
+    /// <response code="200">User retrieved successfully</response>
+    /// <response code="400">Invalid user ID</response>
+    /// <response code="401">Unauthorized</response>
+    /// <response code="403">Forbidden - user does not have admin role</response>
+    /// <response code="404">User not found</response>
+    /// <response code="500">Server error occurred</response>
+    [HttpGet("users/{userId}")]
+    [ProducesResponseType(typeof(UserDetailsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetUserById(Guid userId)
+    {
+        if (userId == Guid.Empty)
+        {
+            _logger.LogWarning("Invalid user ID provided");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "Invalid user ID"
+            });
+        }
+
+        try
+        {
+            var user = await _adminService.GetUserByIdAsync(userId);
+            if (user == null)
+            {
+                _logger.LogWarning($"User with ID {userId} not found");
+                return NotFound(new ErrorResponse
+                {
+                    Success = false,
+                    Message = $"User with ID {userId} not found"
+                });
+            }
+
+            _logger.LogInformation($"Retrieved user details for {userId}");
+            return Ok(user);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogError($"Invalid argument: {ex.Message}");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error retrieving user: {ex.Message}", ex);
+            return StatusCode(StatusCodes.Status500InternalServerError, new ErrorResponse
+            {
+                Success = false,
+                Message = "An error occurred while retrieving the user"
+            });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/admin/users
+    /// Creates a new user in the system.
+    /// </summary>
+    /// <param name="createUserDto">The user data to create</param>
+    /// <returns>The created user ID</returns>
+    /// <response code="201">User created successfully</response>
+    /// <response code="400">Invalid user data</response>
+    /// <response code="401">Unauthorized</response>
+    /// <response code="403">Forbidden - user does not have admin role</response>
+    /// <response code="500">Server error occurred</response>
+    [HttpPost("users")]
+    [ProducesResponseType(typeof(CreateUserResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> CreateUser([FromBody] CreateUserDto createUserDto)
+    {
+        if (createUserDto == null)
+        {
+            _logger.LogWarning("Null user data provided");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "User data cannot be null"
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(createUserDto.FullName))
+        {
+            _logger.LogWarning("Empty full name provided");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "Full name is required"
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(createUserDto.Email))
+        {
+            _logger.LogWarning("Empty email provided");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "Email is required"
+            });
+        }
+
+        try
+        {
+            var userId = await _adminService.CreateUserAsync(createUserDto);
+
+            _logger.LogInformation($"User created successfully with ID: {userId}, Email: {createUserDto.Email}");
+
+            return CreatedAtAction(nameof(GetUserById), new { userId }, new CreateUserResponse
+            {
+                Success = true,
+                Message = "User created successfully",
+                UserId = userId,
+                FullName = createUserDto.FullName,
+                Email = createUserDto.Email
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError($"Invalid operation: {ex.Message}");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogError($"Invalid argument: {ex.Message}");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error creating user: {ex.Message}", ex);
+            return StatusCode(StatusCodes.Status500InternalServerError, new ErrorResponse
+            {
+                Success = false,
+                Message = "An error occurred while creating the user"
+            });
+        }
+    }
+
+    /// <summary>
+    /// PUT /api/admin/users/{userId}
+    /// Updates an existing user in the system.
+    /// </summary>
+    /// <param name="userId">The ID of the user to update</param>
+    /// <param name="updateUserDto">The updated user data</param>
+    /// <returns>The updated user</returns>
+    /// <response code="200">User updated successfully</response>
+    /// <response code="400">Invalid user data or ID mismatch</response>
+    /// <response code="401">Unauthorized</response>
+    /// <response code="403">Forbidden - user does not have admin role</response>
+    /// <response code="404">User not found</response>
+    /// <response code="500">Server error occurred</response>
+    [HttpPut("users/{userId}")]
+    [ProducesResponseType(typeof(UpdateUserResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> UpdateUser(Guid userId, [FromBody] UpdateUserDto updateUserDto)
+    {
+        if (userId == Guid.Empty)
+        {
+            _logger.LogWarning("Invalid user ID provided");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "Invalid user ID"
+            });
+        }
+
+        if (updateUserDto == null)
+        {
+            _logger.LogWarning("Null user data provided");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "User data cannot be null"
+            });
+        }
+
+        if (updateUserDto.UserId != userId)
+        {
+            _logger.LogWarning("User ID mismatch");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "User ID in URL does not match user ID in request body"
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(updateUserDto.FullName))
+        {
+            _logger.LogWarning("Empty full name provided");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "Full name is required"
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(updateUserDto.Email))
+        {
+            _logger.LogWarning("Empty email provided");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "Email is required"
+            });
+        }
+
+        try
+        {
+            var updatedUser = await _adminService.UpdateUserAsync(updateUserDto);
+
+            _logger.LogInformation($"User updated successfully with ID: {userId}");
+
+            return Ok(new UpdateUserResponse
+            {
+                Success = true,
+                Message = "User updated successfully",
+                User = new UserListItemDto
+                {
+                    UserId = updatedUser.UserId,
+                    FullName = updatedUser.FullName,
+                    Email = updatedUser.Email,
+                    Role = "User",
+                    IsActive = updatedUser.IsActive,
+                    AddressId = updatedUser.AddressId
+                }
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError($"Invalid operation: {ex.Message}");
+            return NotFound(new ErrorResponse
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogError($"Invalid argument: {ex.Message}");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error updating user: {ex.Message}", ex);
+            return StatusCode(StatusCodes.Status500InternalServerError, new ErrorResponse
+            {
+                Success = false,
+                Message = "An error occurred while updating the user"
+            });
+        }
+    }
+
+    /// <summary>
+    /// DELETE /api/admin/users/{userId}
+    /// Deletes a user from the system.
+    /// </summary>
+    /// <param name="userId">The ID of the user to delete</param>
+    /// <returns>Success message</returns>
+    /// <response code="200">User deleted successfully</response>
+    /// <response code="400">Invalid user ID</response>
+    /// <response code="401">Unauthorized</response>
+    /// <response code="403">Forbidden - user does not have admin role</response>
+    /// <response code="404">User not found</response>
+    /// <response code="500">Server error occurred</response>
+    [HttpDelete("users/{userId}")]
+    [ProducesResponseType(typeof(DeleteResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> DeleteUser(Guid userId)
+    {
+        if (userId == Guid.Empty)
+        {
+            _logger.LogWarning("Invalid user ID provided");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "Invalid user ID"
+            });
+        }
+
+        try
+        {
+            var deleted = await _adminService.DeleteUserAsync(userId);
+            
+            if (!deleted)
+            {
+                _logger.LogWarning($"User with ID {userId} not found for deletion");
+                return NotFound(new ErrorResponse
+                {
+                    Success = false,
+                    Message = $"User with ID {userId} not found"
+                });
+            }
+
+            _logger.LogInformation($"User deleted successfully with ID: {userId}");
+
+            return Ok(new DeleteResponse
+            {
+                Success = true,
+                Message = "User deleted successfully"
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogError($"Invalid argument: {ex.Message}");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error deleting user: {ex.Message}", ex);
+            return StatusCode(StatusCodes.Status500InternalServerError, new ErrorResponse
+            {
+                Success = false,
+                Message = "An error occurred while deleting the user"
             });
         }
     }
@@ -299,7 +653,7 @@ public class AdminController : ControllerBase
     /// <response code="403">Forbidden - user does not have admin role</response>
     /// <response code="500">Server error occurred</response>
     [HttpGet("city-councils")]
-    [ProducesResponseType(typeof(List<Application.DTOs.CityCouncilWithAddressDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(List<CityCouncilWithAddressDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -354,6 +708,184 @@ public class AdminController : ControllerBase
 
         _logger.LogInformation($"Retrieved city council details for {councilId}");
         return Ok(council);
+    }
+
+    /// <summary>
+    /// PUT /api/admin/city-councils/{councilId}
+    /// Updates an existing city council.
+    /// </summary>
+    /// <param name="councilId">The ID of the city council to update</param>
+    /// <param name="updateCityCouncilDto">The updated city council data</param>
+    /// <returns>The updated city council</returns>
+    /// <response code="200">City council updated successfully</response>
+    /// <response code="400">Invalid city council data or ID mismatch</response>
+    /// <response code="401">Unauthorized</response>
+    /// <response code="403">Forbidden - user does not have admin role</response>
+    /// <response code="404">City council not found</response>
+    /// <response code="500">Server error occurred</response>
+    [HttpPut("city-councils/{councilId}")]
+    [ProducesResponseType(typeof(UpdateCityCouncilResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> UpdateCityCouncil(Guid councilId, [FromBody] UpdateCityCouncilDto updateCityCouncilDto)
+    {
+        if (councilId == Guid.Empty)
+        {
+            _logger.LogWarning("Invalid council ID provided");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "Invalid council ID"
+            });
+        }
+
+        if (updateCityCouncilDto == null)
+        {
+            _logger.LogWarning("Null city council data provided");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "City council data cannot be null"
+            });
+        }
+
+        if (updateCityCouncilDto.CouncilId != councilId)
+        {
+            _logger.LogWarning("Council ID mismatch");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "Council ID in URL does not match council ID in request body"
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(updateCityCouncilDto.Name))
+        {
+            _logger.LogWarning("Empty city council name provided");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "City council name is required"
+            });
+        }
+
+        try
+        {
+            var updatedCouncil = await _cityCouncilService.UpdateCityCouncilAsync(updateCityCouncilDto);
+
+            _logger.LogInformation($"City council updated successfully with ID: {councilId}");
+
+            return Ok(new UpdateCityCouncilResponse
+            {
+                Success = true,
+                Message = "City council updated successfully",
+                CouncilId = updatedCouncil.CouncilId,
+                CouncilName = updatedCouncil.Name
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError($"Invalid operation: {ex.Message}");
+            return NotFound(new ErrorResponse
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogError($"Invalid argument: {ex.Message}");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error updating city council: {ex.Message}", ex);
+            return StatusCode(StatusCodes.Status500InternalServerError, new ErrorResponse
+            {
+                Success = false,
+                Message = "An error occurred while updating the city council"
+            });
+        }
+    }
+
+    /// <summary>
+    /// DELETE /api/admin/city-councils/{councilId}
+    /// Deletes a city council from the system.
+    /// </summary>
+    /// <param name="councilId">The ID of the city council to delete</param>
+    /// <returns>Success message</returns>
+    /// <response code="200">City council deleted successfully</response>
+    /// <response code="400">Invalid council ID</response>
+    /// <response code="401">Unauthorized</response>
+    /// <response code="403">Forbidden - user does not have admin role</response>
+    /// <response code="404">City council not found</response>
+    /// <response code="500">Server error occurred</response>
+    [HttpDelete("city-councils/{councilId}")]
+    [ProducesResponseType(typeof(DeleteResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> DeleteCityCouncil(Guid councilId)
+    {
+        if (councilId == Guid.Empty)
+        {
+            _logger.LogWarning("Invalid council ID provided");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = "Invalid council ID"
+            });
+        }
+
+        try
+        {
+            var deleted = await _cityCouncilService.DeleteCityCouncilAsync(councilId);
+
+            if (!deleted)
+            {
+                _logger.LogWarning($"City council with ID {councilId} not found for deletion");
+                return NotFound(new ErrorResponse
+                {
+                    Success = false,
+                    Message = $"City council with ID {councilId} not found"
+                });
+            }
+
+            _logger.LogInformation($"City council deleted successfully with ID: {councilId}");
+
+            return Ok(new DeleteResponse
+            {
+                Success = true,
+                Message = "City council deleted successfully"
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogError($"Invalid argument: {ex.Message}");
+            return BadRequest(new ErrorResponse
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error deleting city council: {ex.Message}", ex);
+            return StatusCode(StatusCodes.Status500InternalServerError, new ErrorResponse
+            {
+                Success = false,
+                Message = "An error occurred while deleting the city council"
+            });
+        }
     }
 
     #endregion

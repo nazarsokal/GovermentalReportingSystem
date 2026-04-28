@@ -14,4 +14,8 @@ public interface ICityCouncilService
     Task<CityCouncilDetailsDto?> GetCityCouncilByIdAsync(Guid councilId);
 
     Task<IEnumerable<CityCouncilDto>> LoadCityCouncilsFromCsvAsync(IFormFile csvFile);
+
+    Task<CityCouncilDetailsDto> UpdateCityCouncilAsync(UpdateCityCouncilDto updateCityCouncilDto);
+
+    Task<bool> DeleteCityCouncilAsync(Guid councilId);
 }

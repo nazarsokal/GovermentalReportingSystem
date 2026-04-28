@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { GoogleMap, Marker } from '@react-google-maps/api';
+import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api'; // <-- Додано useJsApiLoader
 import AddressService from '../services/AddressService';
 import AppealService from '../services/AppealService';
 import '../styles/CityMap.css';
+import { googleMapsLoaderOptions } from '../constants/googleMaps';
 
 const DEFAULT_COORDINATES = { lat: 50.4501, lng: 30.5234 };
 
@@ -33,6 +34,10 @@ function CityMap({ user, onViewDetails }) {
   const centerSetRef = useRef(false);
   const lastBoundsRequestRef = useRef(null);
   const isUserZoomingRef = useRef(false);
+
+  const { isLoaded, loadError } = useJsApiLoader({
+    ...googleMapsLoaderOptions
+  });
 
   useEffect(() => {
     if (centerSetRef.current || !districtCoordinates || Object.keys(districtCoordinates).length === 0) {
@@ -86,9 +91,9 @@ function CityMap({ user, onViewDetails }) {
     if (!left || !right) return false;
 
     return Math.abs(left.minLatitude - right.minLatitude) < epsilon &&
-      Math.abs(left.maxLatitude - right.maxLatitude) < epsilon &&
-      Math.abs(left.minLongitude - right.minLongitude) < epsilon &&
-      Math.abs(left.maxLongitude - right.maxLongitude) < epsilon;
+        Math.abs(left.maxLatitude - right.maxLatitude) < epsilon &&
+        Math.abs(left.minLongitude - right.minLongitude) < epsilon &&
+        Math.abs(left.maxLongitude - right.maxLongitude) < epsilon;
   };
 
   const fetchAppealsForCurrentBounds = async (force = false) => {
@@ -137,7 +142,7 @@ function CityMap({ user, onViewDetails }) {
     fetchAppealsForCurrentBounds();
   };
 
-   const handleZoomIn = () => {
+  const handleZoomIn = () => {
     if (mapRef.current) {
       isUserZoomingRef.current = true;
       const newZoom = mapRef.current.getZoom() + 1;
@@ -157,7 +162,7 @@ function CityMap({ user, onViewDetails }) {
     }
   };
 
-   const mapOptions = useMemo(() => ({
+  const mapOptions = useMemo(() => ({
     zoom: currentZoom,
     mapTypeId: 'roadmap',
     fullscreenControl: true,
@@ -214,6 +219,7 @@ function CityMap({ user, onViewDetails }) {
     return `${url}${separator}v=${encodeURIComponent(ICON_CACHE_VERSION)}`;
   };
 
+  // --- ПЕРЕВІРКИ СТАНУ ЗАВАНТАЖЕННЯ ---
   if (!hasApiKey) {
     return (
         <div className="city-map-container">
@@ -222,6 +228,27 @@ function CityMap({ user, onViewDetails }) {
               <p><strong>Google Maps API key not configured</strong></p>
               <p>Please add your Google Maps API key to the .env file.</p>
             </div>
+          </div>
+        </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+        <div className="city-map-container">
+          <div className="map-error">
+            <div className="error-content"><p><strong>Error loading maps API</strong></p></div>
+          </div>
+        </div>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+        <div className="city-map-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f8fafc', borderRadius: '12px' }}>
+          <div className="map-loading-overlay" style={{ position: 'static', background: 'transparent' }}>
+            <div className="loading-spinner"></div>
+            <p>Loading Google Maps API...</p>
           </div>
         </div>
     );
@@ -242,119 +269,120 @@ function CityMap({ user, onViewDetails }) {
             </div>
         )}
 
-         {!mapError && !coordinatesLoading && (
-             <>
-               <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                 <GoogleMap
-                     mapContainerStyle={containerStyle}
-                     center={mapCenter || DEFAULT_COORDINATES}
-                     zoom={currentZoom}
-                     options={mapOptions}
-                     onLoad={handleMapLoad}
-                     onError={handleMapError}
-                     onIdle={handleMapMove}
-                 >
-                   {appeals.map((appeal) => {
-                  let iconUrl = appeal.categoryIconUrl;
-                  if (iconUrl && !iconUrl.startsWith('http')) {
-                    const cleanPath = iconUrl.startsWith('/') ? iconUrl.slice(1) : iconUrl;
-                    iconUrl = `${process.env.PUBLIC_URL || ''}/${cleanPath}`;
-                  }
-                  iconUrl = withCacheBuster(iconUrl);
+        {!mapError && !coordinatesLoading && (
+            <>
+              <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                {/* GoogleMap гарантовано рендериться ТІЛЬКИ коли isLoaded === true */}
+                <GoogleMap
+                    mapContainerStyle={containerStyle}
+                    center={mapCenter || DEFAULT_COORDINATES}
+                    zoom={currentZoom}
+                    options={mapOptions}
+                    onLoad={handleMapLoad}
+                    onError={handleMapError}
+                    onIdle={handleMapMove}
+                >
+                  {appeals.map((appeal) => {
+                    let iconUrl = appeal.categoryIconUrl;
+                    if (iconUrl && !iconUrl.startsWith('http')) {
+                      const cleanPath = iconUrl.startsWith('/') ? iconUrl.slice(1) : iconUrl;
+                      iconUrl = `${process.env.PUBLIC_URL || ''}/${cleanPath}`;
+                    }
+                    iconUrl = withCacheBuster(iconUrl);
 
-                  return (
-                      <Marker
-                          key={appeal.appealId}
-                          position={{ lat: parseFloat(appeal.latitude), lng: parseFloat(appeal.longitude) }}
-                          title={appeal.appealId}
-                          icon={{
-                            url: iconUrl,
-                            scaledSize: new window.google.maps.Size(32, 32),
-                            origin: new window.google.maps.Point(0, 0),
-                            anchor: new window.google.maps.Point(16, 32)
-                          }}
-                          onClick={() => handleMarkerClick(appeal)}
-                      />
-                  );
-                   })}
-                 </GoogleMap>
+                    return (
+                        <Marker
+                            key={appeal.appealId}
+                            position={{ lat: parseFloat(appeal.latitude), lng: parseFloat(appeal.longitude) }}
+                            title={appeal.appealId}
+                            icon={{
+                              url: iconUrl,
+                              scaledSize: new window.google.maps.Size(32, 32),
+                              origin: new window.google.maps.Point(0, 0),
+                              anchor: new window.google.maps.Point(16, 32)
+                            }}
+                            onClick={() => handleMarkerClick(appeal)}
+                        />
+                    );
+                  })}
+                </GoogleMap>
 
-                 {/* Custom Zoom Buttons */}
-                 <div style={{
-                   position: 'absolute',
-                   bottom: '16px',
-                   right: '16px',
-                   zIndex: 5,
-                   display: 'flex',
-                   flexDirection: 'column',
-                   gap: '8px'
-                 }}>
-                   <button
-                       onClick={handleZoomIn}
-                       style={{
-                         width: '40px',
-                         height: '40px',
-                         borderRadius: '8px',
-                         border: '1px solid rgba(0, 212, 170, 0.2)',
-                         background: 'white',
-                         cursor: 'pointer',
-                         fontSize: '18px',
-                         fontWeight: 'bold',
-                         color: '#00d4aa',
-                         transition: 'all 0.2s ease',
-                         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                         display: 'flex',
-                         alignItems: 'center',
-                         justifyContent: 'center'
-                       }}
-                       onMouseOver={(e) => {
-                         e.target.style.background = '#f0f0f0';
-                         e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-                       }}
-                       onMouseOut={(e) => {
-                         e.target.style.background = 'white';
-                         e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-                       }}
-                       title="Zoom in"
-                   >
-                     +
-                   </button>
+                {/* Custom Zoom Buttons */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '16px',
+                  right: '16px',
+                  zIndex: 5,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}>
+                  <button
+                      onClick={handleZoomIn}
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(0, 212, 170, 0.2)',
+                        background: 'white',
+                        cursor: 'pointer',
+                        fontSize: '18px',
+                        fontWeight: 'bold',
+                        color: '#00d4aa',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      onMouseOver={(e) => {
+                        e.target.style.background = '#f0f0f0';
+                        e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.target.style.background = 'white';
+                        e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                      }}
+                      title="Zoom in"
+                  >
+                    +
+                  </button>
 
-                   <button
-                       onClick={handleZoomOut}
-                       style={{
-                         width: '40px',
-                         height: '40px',
-                         borderRadius: '8px',
-                         border: '1px solid rgba(0, 212, 170, 0.2)',
-                         background: 'white',
-                         cursor: 'pointer',
-                         fontSize: '20px',
-                         fontWeight: 'bold',
-                         color: '#00d4aa',
-                         transition: 'all 0.2s ease',
-                         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                         display: 'flex',
-                         alignItems: 'center',
-                         justifyContent: 'center'
-                       }}
-                       onMouseOver={(e) => {
-                         e.target.style.background = '#f0f0f0';
-                         e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-                       }}
-                       onMouseOut={(e) => {
-                         e.target.style.background = 'white';
-                         e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-                       }}
-                       title="Zoom out"
-                   >
-                     −
-                   </button>
-                 </div>
-               </div>
+                  <button
+                      onClick={handleZoomOut}
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(0, 212, 170, 0.2)',
+                        background: 'white',
+                        cursor: 'pointer',
+                        fontSize: '20px',
+                        fontWeight: 'bold',
+                        color: '#00d4aa',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      onMouseOver={(e) => {
+                        e.target.style.background = '#f0f0f0';
+                        e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.target.style.background = 'white';
+                        e.target.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
+                      }}
+                      title="Zoom out"
+                  >
+                    −
+                  </button>
+                </div>
+              </div>
 
-               {!mapLoaded && (
-                   <div className="map-loading-overlay">
+              {!mapLoaded && (
+                  <div className="map-loading-overlay">
                     <div className="loading-spinner"></div>
                     <p>Loading map...</p>
                   </div>
@@ -394,7 +422,7 @@ function CityMap({ user, onViewDetails }) {
 
                       <button
                           onClick={() => {
-                            closeAppealDialog(); // Close modal when navigating
+                            closeAppealDialog();
                             onViewDetails(selectedAppeal.appealId);
                           }}
                           style={{ backgroundColor: '#0066cc', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '4px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold', width: '100%' }}

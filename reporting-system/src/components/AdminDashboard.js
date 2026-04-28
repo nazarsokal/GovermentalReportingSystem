@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Autocomplete, useJsApiLoader, GoogleMap, Marker } from '@react-google-maps/api';
 import '../styles/AdminDashboard.css';
 import AdminService from '../services/AdminService';
+import { googleMapsLoaderOptions } from '../constants/googleMaps';
 
-// Налаштування для карти
-const libraries = ['places'];
 const mapContainerStyle = {
     width: '100%',
     height: '250px',
@@ -18,6 +17,8 @@ const defaultCenter = {
     lng: 30.5234
 };
 
+const getCouncilIdentifier = (council) => council?.councilId || council?.id || council?.Id;
+
 function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('users');
 
@@ -27,10 +28,17 @@ function AdminDashboard() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // Стан модального вікна
-    const [showModal, setShowModal] = useState(false);
+    // Стан модальних вікон
+    const [showCouncilModal, setShowCouncilModal] = useState(false);
+    const [showUserModal, setShowUserModal] = useState(false);
+    const [showCSVModal, setShowCSVModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
+
+    // Поточний редагуємий об'єкт
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [selectedCouncil, setSelectedCouncil] = useState(null);
 
     // Пошук голови ради (Head User)
     const [emailSearch, setEmailSearch] = useState('');
@@ -41,19 +49,23 @@ function AdminDashboard() {
     const [mapCenter, setMapCenter] = useState(defaultCenter);
     const [markerPos, setMarkerPos] = useState(null);
 
-    // Ініціалізація карти
     const { isLoaded } = useJsApiLoader({
-        googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-        libraries,
-        language: 'uk',
-        region: 'UA'
+        ...googleMapsLoaderOptions
     });
 
-    // Стан форми (лише основні дані та координати)
-    const [formData, setFormData] = useState({
+    // Стан форми для ради
+    const [councilFormData, setCouncilFormData] = useState({
         name: '', contactEmail: '', headUserId: '',
         latitude: 0, longitude: 0
     });
+
+    // Стан форми для користувача
+    const [userFormData, setUserFormData] = useState({
+        fullName: '', email: '', password: '', role: 'Citizen', status: 'Active'
+    });
+
+    // CSV файл для завантаження
+    const [csvFile, setCsvFile] = useState(null);
 
     const fetchData = async () => {
         setLoading(true);
@@ -82,8 +94,8 @@ function AdminDashboard() {
         const value = e.target.value;
         setEmailSearch(value);
 
-        if (formData.headUserId) {
-            setFormData(prev => ({ ...prev, headUserId: '' }));
+        if (councilFormData.headUserId) {
+            setCouncilFormData(prev => ({ ...prev, headUserId: '' }));
         }
 
         if (value.trim().length > 0) {
@@ -98,7 +110,7 @@ function AdminDashboard() {
 
     const selectUser = (user) => {
         setEmailSearch(user.email);
-        setFormData(prev => ({ ...prev, headUserId: user.id || user.userId }));
+        setCouncilFormData(prev => ({ ...prev, headUserId: user.id || user.userId || user.Id }));
         setSuggestions([]);
     };
 
@@ -115,8 +127,7 @@ function AdminDashboard() {
                 setMapCenter({ lat, lng });
                 setMarkerPos({ lat, lng });
 
-                // Зберігаємо лише координати
-                setFormData(prev => ({
+                setCouncilFormData(prev => ({
                     ...prev,
                     latitude: lat,
                     longitude: lng
@@ -129,24 +140,29 @@ function AdminDashboard() {
         const lat = e.latLng.lat();
         const lng = e.latLng.lng();
         setMarkerPos({ lat, lng });
-        setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
+        setCouncilFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
     };
 
-    const handleInputChange = (e) => {
+    const handleCouncilInputChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        setCouncilFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = async (e) => {
+    const handleUserInputChange = (e) => {
+        const { name, value } = e.target;
+        setUserFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleCouncilSubmit = async (e) => {
         e.preventDefault();
         setFormError('');
 
-        if (!formData.headUserId) {
+        if (!councilFormData.headUserId) {
             setFormError('Будь ласка, оберіть дійсного користувача зі списку підказок email.');
             return;
         }
 
-        if (!formData.latitude || !formData.longitude) {
+        if (!councilFormData.latitude || !councilFormData.longitude) {
             setFormError('Будь ласка, оберіть адресу на карті або через пошук.');
             return;
         }
@@ -154,28 +170,150 @@ function AdminDashboard() {
         setIsSubmitting(true);
 
         const payload = {
-            name: formData.name,
-            contactEmail: formData.contactEmail,
-            headUserId: formData.headUserId,
-            latitude: parseFloat(formData.latitude),
-            longitude: parseFloat(formData.longitude)
+            name: councilFormData.name,
+            contactEmail: councilFormData.contactEmail,
+            headUserId: councilFormData.headUserId,
+            latitude: parseFloat(councilFormData.latitude),
+            longitude: parseFloat(councilFormData.longitude)
         };
 
-        const result = await AdminService.createCityCouncil(payload);
+        let result;
+        if (selectedCouncil) {
+            const councilIdentifier = getCouncilIdentifier(selectedCouncil);
+            result = await AdminService.updateCityCouncil(councilIdentifier, {
+                ...payload,
+                councilId: councilIdentifier,
+                addressId: selectedCouncil.addressId || null
+            });
+        } else {
+            result = await AdminService.createCityCouncil(payload);
+        }
 
         if (result.success) {
-            setShowModal(false);
-            setFormData({
+            setShowCouncilModal(false);
+            setCouncilFormData({
                 name: '', contactEmail: '', headUserId: '',
                 latitude: 0, longitude: 0
             });
             setEmailSearch('');
             setMarkerPos(null);
+            setSelectedCouncil(null);
+            setSuccessMessage(selectedCouncil ? 'Раду оновлено успішно!' : 'Раду створено успішно!');
+            setTimeout(() => setSuccessMessage(''), 3000);
             fetchData();
         } else {
-            setFormError(result.errors?.[0] || 'Не вдалося створити раду.');
+            setFormError(result.errors?.[0] || 'Не вдалося зберегти раду.');
         }
         setIsSubmitting(false);
+    };
+
+    const handleUserSubmit = async (e) => {
+        e.preventDefault();
+        setFormError('');
+
+        setIsSubmitting(true);
+
+        let result;
+        if (selectedUser) {
+            const userIdentifier = selectedUser.id || selectedUser.userId || selectedUser.Id;
+            result = await AdminService.updateUser(userIdentifier, userFormData);
+        } else {
+            result = await AdminService.createUser(userFormData);
+        }
+
+        if (result.success) {
+            setShowUserModal(false);
+            setUserFormData({
+                fullName: '', email: '', password: '', role: 'Citizen', status: 'Active'
+            });
+            setSelectedUser(null);
+            setSuccessMessage(selectedUser ? 'Користувача оновлено успішно!' : 'Користувача створено успішно!');
+            setTimeout(() => setSuccessMessage(''), 3000);
+            fetchData();
+        } else {
+            setFormError(result.errors?.[0] || 'Не вдалося зберегти користувача.');
+        }
+        setIsSubmitting(false);
+    };
+
+    const handleDeleteUser = async (userId) => {
+        if (!window.confirm('Ви впевнені, що хочете видалити цього користувача?')) return;
+
+        const result = await AdminService.deleteUser(userId);
+        if (result.success) {
+            setSuccessMessage('Користувача видалено успішно!');
+            setTimeout(() => setSuccessMessage(''), 3000);
+            fetchData();
+        } else {
+            setError(result.errors?.[0] || 'Не вдалося видалити користувача.');
+        }
+    };
+
+    const handleDeleteCouncil = async (councilId) => {
+        if (!window.confirm('Ви впевнені, що хочете видалити цю раду?')) return;
+
+        const result = await AdminService.deleteCityCouncil(councilId);
+        if (result.success) {
+            setSuccessMessage('Раду видалено успішно!');
+            setTimeout(() => setSuccessMessage(''), 3000);
+            fetchData();
+        } else {
+            setError(result.errors?.[0] || 'Не вдалося видалити раду.');
+        }
+    };
+
+    const handleCSVUpload = async (e) => {
+        e.preventDefault();
+        setFormError('');
+
+        if (!csvFile) {
+            setFormError('Будь ласка, оберіть CSV файл.');
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        const result = await AdminService.uploadAppealsFromCSV(csvFile);
+
+        if (result.success) {
+            setShowCSVModal(false);
+            setCsvFile(null);
+            setSuccessMessage(result.message || 'Звернення завантажено успішно!');
+            setTimeout(() => setSuccessMessage(''), 3000);
+            fetchData();
+        } else {
+            setFormError(result.errors?.[0] || 'Не вдалося завантажити звернення з CSV.');
+        }
+        setIsSubmitting(false);
+    };
+
+    const openEditUserModal = (user) => {
+        setSelectedUser(user);
+        setUserFormData({
+            fullName: user.fullName || user.name || '',
+            email: user.email || '',
+            password: '',
+            role: user.role || 'Citizen',
+            status: user.status || 'Active'
+        });
+        setShowUserModal(true);
+    };
+
+    const openEditCouncilModal = async (council) => {
+        setSelectedCouncil(council);
+        setCouncilFormData({
+            name: council.name || '',
+            contactEmail: council.contactEmail || '',
+            headUserId: council.headUserId || '',
+            latitude: council.latitude || 0,
+            longitude: council.longitude || 0
+        });
+        if (council.latitude && council.longitude) {
+            setMapCenter({ lat: council.latitude, lng: council.longitude });
+            setMarkerPos({ lat: council.latitude, lng: council.longitude });
+        }
+        setEmailSearch('');
+        setShowCouncilModal(true);
     };
 
     return (
@@ -184,6 +322,19 @@ function AdminDashboard() {
                 <h1>Панель адміністратора</h1>
                 <p>Керування користувачами, міськими радами та аналітика</p>
             </div>
+
+            {successMessage && (
+                <div style={{
+                    padding: '12px 16px',
+                    marginBottom: '20px',
+                    backgroundColor: '#d1fae5',
+                    color: '#065f46',
+                    borderRadius: '6px',
+                    border: '1px solid #a7f3d0'
+                }}>
+                    {successMessage}
+                </div>
+            )}
 
             <div className="admin-stats-grid">
                 <div className="admin-stat-card">
@@ -225,15 +376,19 @@ function AdminDashboard() {
                     <div style={{ overflowX: 'auto' }}>
                         <table className="admin-table">
                             <thead>
-                            <tr><th>Ім'я</th><th>Email</th><th>Роль</th><th>Статус</th></tr>
+                            <tr><th>Ім'я</th><th>Email</th><th>Роль</th><th>Статус</th><th>Дії</th></tr>
                             </thead>
                             <tbody>
                             {users.map((u) => (
-                                <tr key={u.id || u.userId}>
+                                <tr key={u.id || u.userId || u.Id}>
                                     <td>{u.fullName || u.name}</td>
                                     <td>{u.email}</td>
                                     <td><span className={`badge badge-role-${(u.role || 'Citizen').toLowerCase()}`}>{u.role}</span></td>
                                     <td><span className={`badge badge-status-${(u.status || 'active').toLowerCase()}`}>{u.status}</span></td>
+                                    <td>
+                                        <button className="btn-small btn-edit" onClick={() => openEditUserModal(u)}>Редагувати</button>
+                                        <button className="btn-small btn-delete" onClick={() => handleDeleteUser(u.id || u.userId || u.Id)}>Видалити</button>
+                                    </td>
                                 </tr>
                             ))}
                             </tbody>
@@ -245,18 +400,34 @@ function AdminDashboard() {
                     <>
                         <div className="content-header">
                             <h2>Список міських рад</h2>
-                            <button className="btn-primary" onClick={() => setShowModal(true)}>+ Додати раду</button>
+                            <div className="button-group">
+                                <button className="btn-primary" onClick={() => {
+                                    setSelectedCouncil(null);
+                                    setCouncilFormData({
+                                        name: '', contactEmail: '', headUserId: '',
+                                        latitude: 0, longitude: 0
+                                    });
+                                    setEmailSearch('');
+                                    setMarkerPos(null);
+                                    setShowCouncilModal(true);
+                                }}>+ Додати раду</button>
+                                <button className="btn-secondary" onClick={() => setShowCSVModal(true)}>⬆️ Завантажити звернення</button>
+                            </div>
                         </div>
                         <div style={{ overflowX: 'auto' }}>
                             <table className="admin-table">
                                 <thead>
-                                <tr><th>Назва</th><th>Email</th><th>Місто</th><th>Район</th></tr>
+                                <tr><th>Назва</th><th>Email</th><th>Місто</th><th>Район</th><th>Дії</th></tr>
                                 </thead>
                                 <tbody>
                                 {councils.map((c) => (
-                                    <tr key={c.id}>
+                                    <tr key={getCouncilIdentifier(c)}>
                                         <td style={{ fontWeight: '500' }}>{c.name}</td>
                                         <td>{c.contactEmail}</td><td>{c.city || 'N/A'}</td><td>{c.district || 'N/A'}</td>
+                                        <td>
+                                            <button className="btn-small btn-edit" onClick={() => openEditCouncilModal(c)}>Редагувати</button>
+                                            <button className="btn-small btn-delete" onClick={() => handleDeleteCouncil(getCouncilIdentifier(c))}>Видалити</button>
+                                        </td>
                                     </tr>
                                 ))}
                                 </tbody>
@@ -266,22 +437,22 @@ function AdminDashboard() {
                 )}
             </div>
 
-            {showModal && (
-                <div className="admin-modal-overlay" onClick={() => setShowModal(false)}>
+            {showCouncilModal && (
+                <div className="admin-modal-overlay" onClick={() => setShowCouncilModal(false)}>
                     <div className="admin-modal-content" onClick={e => e.stopPropagation()}>
-                        <h2>Створення міської ради</h2>
+                        <h2>{selectedCouncil ? 'Редагування міської ради' : 'Створення міської ради'}</h2>
                         {formError && <div className="alert alert-error">{formError}</div>}
 
-                        <form onSubmit={handleSubmit}>
+                        <form onSubmit={handleCouncilSubmit}>
                             <div className="form-grid">
                                 <div className="form-group full-width">
                                     <label>Назва ради</label>
-                                    <input type="text" name="name" value={formData.name} onChange={handleInputChange} required />
+                                    <input type="text" name="name" value={councilFormData.name} onChange={handleCouncilInputChange} required />
                                 </div>
 
                                 <div className="form-group">
                                     <label>Контактний Email</label>
-                                    <input type="email" name="contactEmail" value={formData.contactEmail} onChange={handleInputChange} required />
+                                    <input type="email" name="contactEmail" value={councilFormData.contactEmail} onChange={handleCouncilInputChange} required />
                                 </div>
 
                                 <div className="form-group autocomplete-wrapper">
@@ -292,12 +463,12 @@ function AdminDashboard() {
                                         onChange={handleEmailChange}
                                         placeholder="Введіть email..."
                                         required
-                                        style={{ borderColor: formData.headUserId ? '#10b981' : '#d1d5db' }}
+                                        style={{ borderColor: councilFormData.headUserId ? '#10b981' : '#d1d5db' }}
                                     />
                                     {suggestions.length > 0 && (
                                         <div className="suggestions-dropdown">
                                             {suggestions.map(u => (
-                                                <div key={u.id || u.userId} className="suggestion-item" onClick={() => selectUser(u)}>
+                                                <div key={u.id || u.userId || u.Id} className="suggestion-item" onClick={() => selectUser(u)}>
                                                     {u.email} ({u.fullName || u.name})
                                                 </div>
                                             ))}
@@ -331,18 +502,102 @@ function AdminDashboard() {
                                     ) : <div>Завантаження карт...</div>}
                                 </div>
 
-                                {/* Відображення збережених координат */}
-                                {formData.latitude !== 0 && (
+                                {councilFormData.latitude !== 0 && (
                                     <div className="form-group full-width" style={{ fontSize: '13px', color: '#10b981', marginTop: '-10px', fontWeight: '500' }}>
-                                        ✓ Координати збережено: {formData.latitude.toFixed(5)}, {formData.longitude.toFixed(5)}
+                                        ✓ Координати збережено: {councilFormData.latitude.toFixed(5)}, {councilFormData.longitude.toFixed(5)}
                                     </div>
                                 )}
                             </div>
 
                             <div className="modal-actions">
-                                <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Скасувати</button>
-                                <button type="submit" className="btn-primary" disabled={isSubmitting || !formData.headUserId || !formData.latitude}>
-                                    {isSubmitting ? 'Збереження...' : 'Зберегти раду'}
+                                <button type="button" className="btn-secondary" onClick={() => setShowCouncilModal(false)}>Скасувати</button>
+                                <button type="submit" className="btn-primary" disabled={isSubmitting || !councilFormData.headUserId || !councilFormData.latitude}>
+                                    {isSubmitting ? 'Збереження...' : selectedCouncil ? 'Оновити раду' : 'Зберегти раду'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {showUserModal && (
+                <div className="admin-modal-overlay" onClick={() => setShowUserModal(false)}>
+                    <div className="admin-modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+                        <h2>{selectedUser ? 'Редагування користувача' : 'Створення користувача'}</h2>
+                        {formError && <div className="alert alert-error">{formError}</div>}
+
+                        <form onSubmit={handleUserSubmit}>
+                            <div className="form-grid">
+                                <div className="form-group full-width">
+                                    <label>Повне ім'я</label>
+                                    <input type="text" name="fullName" value={userFormData.fullName} onChange={handleUserInputChange} required />
+                                </div>
+
+                                <div className="form-group full-width">
+                                    <label>Email</label>
+                                    <input type="email" name="email" value={userFormData.email} onChange={handleUserInputChange} required />
+                                </div>
+
+                                {!selectedUser && (
+                                    <div className="form-group full-width">
+                                        <label>Пароль</label>
+                                        <input type="password" name="password" value={userFormData.password} onChange={handleUserInputChange} required />
+                                    </div>
+                                )}
+
+                                <div className="form-group">
+                                    <label>Роль</label>
+                                    <select name="role" value={userFormData.role} onChange={handleUserInputChange}>
+                                        <option value="Citizen">Громадянин</option>
+                                        <option value="CouncilHead">Голова ради</option>
+                                        <option value="CouncilEmployee">Робітник ради</option>
+                                        <option value="Admin">Адміністратор</option>
+                                    </select>
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Статус</label>
+                                    <select name="status" value={userFormData.status} onChange={handleUserInputChange}>
+                                        <option value="Active">Активний</option>
+                                        <option value="Inactive">Неактивний</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="modal-actions">
+                                <button type="button" className="btn-secondary" onClick={() => setShowUserModal(false)}>Скасувати</button>
+                                <button type="submit" className="btn-primary" disabled={isSubmitting}>
+                                    {isSubmitting ? 'Збереження...' : selectedUser ? 'Оновити користувача' : 'Зберегти користувача'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {showCSVModal && (
+                <div className="admin-modal-overlay" onClick={() => setShowCSVModal(false)}>
+                    <div className="admin-modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+                        <h2>Завантажити звернення з CSV</h2>
+                        {formError && <div className="alert alert-error">{formError}</div>}
+
+                        <form onSubmit={handleCSVUpload}>
+                            <div className="form-grid">
+                                <div className="form-group full-width">
+                                    <label>Виберіть файл CSV зі зверненнями</label>
+                                    <input
+                                        type="file"
+                                        accept=".csv"
+                                        onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="modal-actions">
+                                <button type="button" className="btn-secondary" onClick={() => setShowCSVModal(false)}>Скасувати</button>
+                                <button type="submit" className="btn-primary" disabled={isSubmitting || !csvFile}>
+                                    {isSubmitting ? 'Завантаження...' : 'Завантажити звернення'}
                                 </button>
                             </div>
                         </form>
